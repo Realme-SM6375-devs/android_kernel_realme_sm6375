@@ -1031,6 +1031,8 @@ else
 LD_FLAGS_LTO_CLANG := -mllvm -import-instr-limit=5
 endif
 
+LD_FLAGS_LTO_CLANG += --lto-O3
+
 KBUILD_LDFLAGS += $(LD_FLAGS_LTO_CLANG)
 KBUILD_LDFLAGS_MODULE += $(LD_FLAGS_LTO_CLANG)
 
