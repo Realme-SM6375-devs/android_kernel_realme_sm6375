@@ -186,7 +186,10 @@ oplus_chg-$(CONFIG_OPLUS_CHARGER_MTK6985S) += \
 
 oplus_chg-$(CONFIG_OPLUS_CHG_DYNAMIC_CONFIG) += op_wlchg_v2/oplus_chg_cfg.o
 
-ccflags-y += -DOPLUS_CHG_REG_DUMP_ENABLE
+# Undo compiler optimizations to workaround buggy code
+ccflags-remove-y := -O2 -O3 $(CC_FLAGS_LTO)
+
+ccflags-y += -Os -DOPLUS_CHG_REG_DUMP_ENABLE
 
 KBUILD_LDS_MODULE_ATTACH = oplus_chg_module.lds
 
