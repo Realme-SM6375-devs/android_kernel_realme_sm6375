@@ -135,6 +135,7 @@ dtb-$(CONFIG_ARCH_LAHAINA) += lahaina-rumi.dtb \
 endif
 endif
 
+ifneq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 dtbo-$(CONFIG_ARCH_HOLI) += holi-rumi-overlay.dtbo \
 	holi-mtp-overlay.dtbo \
@@ -182,6 +183,7 @@ dtb-$(CONFIG_ARCH_HOLI) += holi-rumi.dtb \
 	holi-qrd-pm6125.dtb \
 	holi-qrd-pm6125-nopmi.dtb
 
+endif
 endif
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)

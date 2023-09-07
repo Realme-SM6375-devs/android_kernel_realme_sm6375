@@ -50,14 +50,6 @@
 					<RPM_SMD_REGULATOR_LEVEL_BINNING>;
 			qcom,use-voltage-level;
 		};
-
-		gfx_cdev: gfx-cdev {
-			compatible = "qcom,regulator-cooling-device";
-			regulator-cdev-supply = <&S3A_LEVEL_AO>;
-			regulator-levels = <RPM_SMD_REGULATOR_LEVEL_RETENTION
-					RPM_SMD_REGULATOR_LEVEL_SVS_PLUS>;
-			#cooling-cells = <2>;
-		};
 	};
 
 	/* PM6350 L1 - VDD_MX supply */
@@ -195,13 +187,13 @@
 
 	rpm-regulator-ldoa8 {
 		status = "okay";
-		proxy-supply = <&pm6350_l8>;
+		//proxy-supply = <&pm6350_l8>;
 		L8A: pm6350_l8: regulator-l8 {
 			regulator-min-microvolt = <2500000>;
 			regulator-max-microvolt = <3544000>;
 			qcom,init-voltage = <2500000>;
-			qcom,proxy-consumer-enable;
-			qcom,proxy-consumer-current = <857000>;
+			//qcom,proxy-consumer-enable;
+			//qcom,proxy-consumer-current = <857000>;
 			status = "okay";
 		};
 	};
