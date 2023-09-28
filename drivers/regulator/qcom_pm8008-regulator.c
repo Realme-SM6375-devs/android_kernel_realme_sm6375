@@ -30,7 +30,6 @@
 #define VSET_STEP_UV			(VSET_STEP_MV * 1000)
 
 #define MISC_BASE			0x900
-
 #define MISC_CHIP_ENABLE_REG		(MISC_BASE + 0x50)
 #define CHIP_ENABLE_BIT			BIT(0)
 
@@ -65,6 +64,8 @@
 
 #define LDO_PD_CTL_REG(base)		(base + 0xA0)
 #define STRONG_PD_EN_BIT		BIT(7)
+#define CLK_LEICA2_LFRC_AON_TRIM	0x51F2
+#define REVID_TP_REV		0x1F1
 
 #define PM8008_MAX_LDO			7
 
@@ -160,7 +161,8 @@ static int pm8008_masked_write(struct regmap *regmap, u16 reg, u8 mask,
 static int pm8008_chip_aggregate(struct pm8008_chip *chip)
 {
 	bool enable;
-	int rc;
+	int rc,  retry_count = 10;
+	u8 val;
 
 	lockdep_assert_held_once(&chip->lock);
 
@@ -177,6 +179,7 @@ static int pm8008_chip_aggregate(struct pm8008_chip *chip)
 	}
 
 	chip->aggr_enabled = enable;
+
 	pm8008_debug(chip, "chip %s\n", enable ? "enabled" : "disabled");
 
 	return 0;
@@ -653,7 +656,6 @@ static int pm8008_register_ldo(struct pm8008_regulator *pm8008_reg,
 		return rc;
 	}
 	pm8008_reg->step_rate = 38400 >> (reg & STEP_RATE_MASK);
-
 	init_data = of_get_regulator_init_data(dev, reg_node,
 						&pm8008_reg->rdesc);
 	if (init_data == NULL) {
@@ -729,7 +731,6 @@ static int pm8008_register_ldo(struct pm8008_regulator *pm8008_reg,
 			return rc;
 		}
 	}
-
 	pr_debug("%s regulator registered\n", name);
 
 	return 0;
@@ -751,7 +752,7 @@ static int pm8008_parse_regulator(struct regmap *regmap, struct device *dev)
 	en_supply = devm_regulator_get(dev, "pm8008_en");
 	if (IS_ERR(en_supply)) {
 		rc = PTR_ERR(en_supply);
-		dev_err(dev, "failed to get pm8008_en supply\n");
+			dev_err(dev, "failed to get pm8008_en supply\n");
 		return rc;
 	}
 
