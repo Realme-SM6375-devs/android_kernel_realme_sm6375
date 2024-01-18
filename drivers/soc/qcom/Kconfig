@@ -1284,10 +1284,6 @@ config QCOM_RTIC
 	  will trigger RTIC kernel MP.s (measurement parameters) generation
 	  during the kernel build.
 
-config OPLUS_FEATURE_MODEM_MINIDUMP
-        bool "Add for oplus modem minidump function"
-        help
-          Add for oplus modem minidump function.
 config RENAME_BLOCK_DEVICE
 	tristate "Rename block device node in /dev"
 	default n
