@@ -23,10 +23,6 @@
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
-
-#ifdef OPLUS_FEATURE_ADSP_RECOVERY
-#include <soc/qcom/subsystem_restart.h>
-#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 #ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 #include "feedback/oplus_audio_kernel_fb.h"
 #endif
@@ -451,70 +447,6 @@ static bool proxy_afe_started = false;
 
 static bool is_afe_proxy_port(int port_id);
 static bool q6afe_is_afe_lsm_port(int port_id);
-
-#ifdef OPLUS_FEATURE_ADSP_RECOVERY
-#define ADSP_READY_RETRY_NUM 5
-
-int oplus_adsp_restart_subsys(const char *name)
-{
-	int rc = -EINVAL;
-	enum apr_subsys_state q6_state;
-	int level = 0;
-	int retry = 0;
-
-	pr_info("%s: enter.\n", __func__);
-
-	if (!name) {
-		pr_info("%s: invalid name param, rc=%d\n", __func__, rc);
-		return rc;
-	}
-
-	if (strcmp(name, "adsp") != 0) {
-		pr_info("%s: not adsp subsys, name=%s\n", __func__, name);
-		return rc;
-	}
-
-	if (oplus_adsp_get_ssr_state()) {
-		pr_err("%s: adsp alreay in restart, ignore\n", __func__);
-		return 0;
-	}
-
-	while (retry < ADSP_READY_RETRY_NUM) {
-		retry++;
-		if (!q6core_is_adsp_ready()) {
-			pr_err("%s: adsp not ready. retry=%d\n", __func__, retry);
-		} else {
-			retry = 0;
-			pr_err("%s: adsp is ready. retry=%d\n", __func__, retry);
-			break;
-		}
-	}
-
-	q6_state = apr_get_q6_state();
-	pr_info("%s: q6_state=%d\n", __func__, q6_state);
-	if ((q6_state != APR_SUBSYS_DOWN) && !oplus_adsp_get_ssr_state()) {
-		level = oplus_adsp_get_restart_level(name);
-		switch (level) {
-		case RESET_SUBSYS_COUPLED:
-			pr_err("%s: try to recover adsp.\n", __func__);
-			rc = subsystem_restart(name);
-			pr_err("%s: adsp restart, rc=%d.\n", __func__, rc);
-			break;
-		case RESET_SOC:
-			/*adsp subsys restart level same with ap? add panic to catch ramdump in time*/
-			panic("Add panic for track adsp issue!");
-			return 0;
-		default:
-			pr_err("%s: unknown restart level %d!\n", __func__, level);
-			break;
-		}
-	}
-
-	pr_info("%s: exit.\n", __func__);
-	return 0;
-}
-EXPORT_SYMBOL(oplus_adsp_restart_subsys);
-#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 
 static void q6afe_unload_avcs_modules(u16 port_id, int index)
 {
@@ -10701,10 +10633,6 @@ int afe_set_lpass_clk_cfg(int index, struct afe_clk_set *cfg)
 		if (__ratelimit(&rtl))
 			pr_err_ratelimited("%s: AFE clk cfg failed with ret %d\n",
 				__func__, ret);
-		#ifdef OPLUS_FEATURE_ADSP_RECOVERY
-		pr_err("%s: invoke adsp restart.\n", __func__);
-		oplus_adsp_restart_subsys("adsp");
-		#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 	}
 	mutex_unlock(&this_afe.afe_clk_lock);
 	return ret;
