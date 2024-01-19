@@ -33701,12 +33701,6 @@ static const struct soc_enum int4_mi2s_rx_vi_fb_stereo_ch_mux_enum =
 	int4_mi2s_rx_vi_fb_tx_stereo_mux_text,
 	int4_mi2s_rx_vi_fb_tx_stereo_ch_value);
 
-#ifdef CONFIG_SND_SOC_AW882XX
-static const struct soc_enum tdm_rx_vi_fb_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SEC_TDM_RX_0, 0, 0,
-	ARRAY_SIZE(tdm_rx_vi_fb_tx_mux_text),
-	tdm_rx_vi_fb_tx_mux_text, tdm_rx_vi_fb_tx_value);
-#endif
 static const struct snd_kcontrol_new cdc_dma_rx_0_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("CDC_DMA_RX_0_VI_FB_MUX",
 	cdc_dma_rx_0_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
@@ -33716,6 +33710,13 @@ static const struct snd_kcontrol_new cdc_dma_rx_1_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("CDC_DMA_RX_1_VI_FB_MUX",
 	cdc_dma_rx_1_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
 	spkr_prot_put_vi_lch_port);
+
+#ifdef CONFIG_SND_SOC_AW882XX
+static const struct soc_enum tdm_rx_vi_fb_mux_enum =
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SEC_TDM_RX_0, 0, 0,
+	ARRAY_SIZE(tdm_rx_vi_fb_tx_mux_text),
+	tdm_rx_vi_fb_tx_mux_text, tdm_rx_vi_fb_tx_value);
+#endif
 
 static const struct snd_kcontrol_new slim0_rx_vi_fb_lch_mux =
 	SOC_DAPM_ENUM_EXT("SLIM0_RX_VI_FB_LCH_MUX",
@@ -37238,13 +37239,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"RX_CDC_DMA_RX_1_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"RX_CDC_DMA_RX_1", NULL, "RX_CDC_DMA_RX_1_DL_HL"},
 	{"TX3_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_3"},
+	{"TX4_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_4"},
 #ifdef OPLUS_ARCH_EXTENDS
 	{"SEC_TDM_RX_0_DL_HL", "Switch", "SEC_TDM_RX_0_DL_HL"},
 	{"SEC_TDM_RX_0", NULL, "SEC_TDM_RX_0_DL_HL"},
 #endif
-#ifdef OPLUS_FEATURE_AUDIO_FTM
-	{"TX4_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_4"},
-#endif /* OPLUS_FEATURE_AUDIO_FTM */
 	{"LSM1 Mixer", "SLIMBUS_0_TX", "SLIMBUS_0_TX"},
 	{"LSM1 Mixer", "SLIMBUS_1_TX", "SLIMBUS_1_TX"},
 	{"LSM1 Mixer", "SLIMBUS_3_TX", "SLIMBUS_3_TX"},
