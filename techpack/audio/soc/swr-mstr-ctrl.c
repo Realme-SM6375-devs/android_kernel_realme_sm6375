@@ -28,9 +28,6 @@
 #include <dsp/digital-cdc-rsc-mgr.h>
 #include "swr-mstr-ctrl.h"
 #include "swr-slave-port-config.h"
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-#include "feedback/oplus_audio_kernel_fb.h"
-#endif
 
 #define SWR_NUM_PORTS    4 /* TODO - Get this info from DT */
 
@@ -137,9 +134,6 @@ static u32 swr_master_read(struct swr_mstr_ctrl *swrm, unsigned int reg_addr);
 static void swr_master_write(struct swr_mstr_ctrl *swrm, u16 reg_addr, u32 val);
 static int swrm_runtime_resume(struct device *dev);
 static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr);
-#ifdef OPLUS_BUG_STABILITY
-static int swrm_master_init(struct swr_mstr_ctrl *swrm);
-#endif /* OPLUS_BUG_STABILITY */
 
 static u8 swrm_get_device_id(struct swr_mstr_ctrl *swrm, u8 devnum)
 {
@@ -868,17 +862,9 @@ static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr)
 					break;
 			}
 		}
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		if (fifo_outstanding_cmd == 0) {
-			dev_err_ratelimited(swrm->dev,
-					"%s err read underflow\n", __func__);
-			ratelimited_fb("payload@@%s %s:err read underflow", dev_driver_string(swrm->dev), dev_name(swrm->dev));
-		}
-#else
 		if (fifo_outstanding_cmd == 0)
 			dev_err_ratelimited(swrm->dev,
 					"%s err read underflow\n", __func__);
-#endif
 	} else {
 		/* Check for fifo overflow during write */
 		/* Check no of outstanding commands in fifo before write */
@@ -896,17 +882,9 @@ static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr)
 					break;
 			}
 		}
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		if (fifo_outstanding_cmd == swrm->wr_fifo_depth) {
-			dev_err_ratelimited(swrm->dev,
-					"%s err write overflow\n", __func__);
-			ratelimited_fb("payload@@%s %s:err write overflow", dev_driver_string(swrm->dev), dev_name(swrm->dev));
-		}
-#else
 		if (fifo_outstanding_cmd == swrm->wr_fifo_depth)
 			dev_err_ratelimited(swrm->dev,
 					"%s err write overflow\n", __func__);
-#endif
 	}
 }
 
@@ -961,12 +939,6 @@ retry_read:
 				rcmd_id: 0x%x, dev_num: 0x%x, cmd_data: 0x%x\n",
 				__func__, reg_addr, cmd_id, swrm->rcmd_id,
 				dev_addr, *cmd_data);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:read failed,reg=0x%x,cmd_id=0x%x,"
-				"rcmd_id=0x%x,dev_num=0x%x,cmd_data=0x%x",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev),
-				reg_addr, cmd_id, swrm->rcmd_id, dev_addr, *cmd_data);
-#endif
 
 			dev_err_ratelimited(swrm->dev,
 				"%s: failed to read fifo\n", __func__);
@@ -2030,9 +2002,6 @@ static irqreturn_t swr_mstr_interrupt(int irq, void *dev)
 	struct swr_device *swr_dev;
 	struct swr_master *mstr = &swrm->master;
 	int retry = 5;
-	#ifdef OPLUS_BUG_STABILITY
-	int mcp_slv_status;
-	#endif /* OPLUS_BUG_STABILITY */
 
 	if (unlikely(swrm_lock_sleep(swrm) == false)) {
 		dev_err(swrm->dev, "%s Failed to hold suspend\n", __func__);
@@ -2051,10 +2020,6 @@ static irqreturn_t swr_mstr_interrupt(int irq, void *dev)
 	ret = swrm_clk_request(swrm, true);
 	if (ret) {
 		dev_err(dev, "%s: swrm clk failed\n", __func__);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		ratelimited_fb("payload@@%s %s:swrm clk failed,ret=%d",
-			dev_driver_string(dev), dev_name(dev), ret);
-#endif
 		ret = IRQ_NONE;
 		goto err_audio_core_vote;
 	}
@@ -2156,30 +2121,18 @@ handle_irq:
 			swr_master_write(swrm,
 				SWRM_CPU1_INTERRUPT_EN,
 				swrm->intr_mask);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR bus clsh detected",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev));
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err(swrm->dev,
 				"%s: SWR read FIFO overflow fifo status %x\n",
 				__func__, value);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR read FIFO overflow fifo status 0x%x",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err(swrm->dev,
 				"%s: SWR read FIFO underflow fifo status %x\n",
 				__func__, value);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR read FIFO underflow fifo status 0x%x",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_WR_CMD_FIFO_OVERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
@@ -2187,36 +2140,13 @@ handle_irq:
 				"%s: SWR write FIFO overflow fifo status %x\n",
 				__func__, value);
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR write FIFO overflow fifo status 0x%x",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_CMD_ERROR:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err_ratelimited(swrm->dev,
 			"%s: SWR CMD error, fifo status 0x%x, flushing fifo\n",
 					__func__, value);
-			#ifndef OPLUS_BUG_STABILITY
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
-			#else /* OPLUS_BUG_STABILITY */
-			mcp_slv_status = swr_master_read(swrm, SWRM_MCP_SLV_STATUS);
-			if (!mcp_slv_status && (value & 0x40)) {
-				/* Slave is not enumerated and fifo status gives nack */
-				pr_err("%s: do soft reset for swr when enumeration lost during cmd error.\n",
-						__func__);
-				swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
-				swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
-				swrm_master_init(swrm);
-				/* wait for hw enumeration to complete */
-				usleep_range(100, 105);
-			} else
-				swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
-			#endif /* OPLUS_BUG_STABILITY */
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR CMD error, fifo status 0x%x, flushing fifo",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_DOUT_PORT_COLLISION:
 			dev_err_ratelimited(swrm->dev,
@@ -2225,10 +2155,6 @@ handle_irq:
 			swrm->intr_mask &= ~SWRM_INTERRUPT_STATUS_DOUT_PORT_COLLISION;
 			swr_master_write(swrm,
 				SWRM_CPU1_INTERRUPT_EN, swrm->intr_mask);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			ratelimited_fb("payload@@%s %s:SWR Port collision detected",
-				dev_driver_string(swrm->dev), dev_name(swrm->dev));
-#endif
 			break;
 		case SWRM_INTERRUPT_STATUS_READ_EN_RD_VALID_MISMATCH:
 			dev_dbg(swrm->dev,
@@ -2273,10 +2199,6 @@ handle_irq:
 				dev_err_ratelimited(swrm->dev,
 					"%s: SWR wokeup during clock stop\n",
 					__func__);
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-				ratelimited_fb("payload@@%s %s:SWR wokeup during clock stop, state=%d",
-					dev_driver_string(swrm->dev), dev_name(swrm->dev), swrm->state);
-#endif
 				/* It might be possible the slave device gets
 				 * reset and slave interrupt gets missed. So
 				 * re-enable Host IRQ and process slave pending

@@ -1136,7 +1136,7 @@ int wcd938x_mbhc_init(struct wcd938x_mbhc **mbhc,
 				wcd_mbhc->enable_hp_impedance_detect = false;
 			}
 		} else
-			dev_info(component->dev, "%s: Looking up %s property in node %s failed\n",
+			dev_err(component->dev, "%s: Looking up %s property in node %s failed\n",
 				__func__, mbhc_enable_hp_impedance_detect, component->dev->of_node->full_name);
 	} else {
 		dev_info(component->dev, "%s: oplus,mbhc_enable_hp_impedance_detect DT property not found\n",

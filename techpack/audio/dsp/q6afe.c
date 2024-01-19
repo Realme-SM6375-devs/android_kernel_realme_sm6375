@@ -32,10 +32,6 @@
 #endif
 
 #ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
-#include "feedback/oplus_audio_kernel_fb.h"
-#endif
-
-#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
 #define AFE_MODULE_FEEDBACK_ABNORMAL_INFO		(0x1000BA00)
 #define AFE_PARAM_ID_UNDERRUN_AND_SIGNAL_MISS		(0x1000BA10)
@@ -1815,6 +1811,12 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 					&this_afe.status)));
 				ret = adsp_err_get_lnx_err_code(
 						atomic_read(&this_afe.status));
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+				if (apr_get_q6_state() == APR_SUBSYS_LOADED) {
+					ratelimited_fb("payload@@q6afe.c:DSP returned error[%s],ret=%d",
+						adsp_err_get_err_str(atomic_read(&this_afe.status)), ret);
+				}
+#endif
 			} else {
 				ret = 0;
 			}
