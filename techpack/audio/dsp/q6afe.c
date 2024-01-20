@@ -25,6 +25,10 @@
 #include "q6afecal-hwdep.h"
 
 #ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+#include "feedback/oplus_audio_kernel_fb.h"
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
 #define AFE_MODULE_FEEDBACK_ABNORMAL_INFO		(0x1000BA00)
 #define AFE_PARAM_ID_UNDERRUN_AND_SIGNAL_MISS		(0x1000BA10)
