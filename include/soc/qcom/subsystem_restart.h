@@ -131,6 +131,19 @@ struct notif_data {
 };
 
 #if IS_ENABLED(CONFIG_MSM_SUBSYSTEM_RESTART)
+
+#ifdef OPLUS_FEATURE_ADSP_RECOVERY
+extern void oplus_adsp_set_ssr_state(bool state);
+extern bool oplus_adsp_get_ssr_state(void);
+extern int oplus_adsp_get_restart_level(const char *name);
+#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
+
+#ifdef OPLUS_FEATURE_SWITCH_CHECK
+//Add for: check fw status for switch issue
+extern void __wlan_subsystem_send_uevent(struct device *dev, char *reason,const char *name);
+extern void wlan_subsystem_send_uevent(struct subsys_device *dev, char *reason,const char *name);
+#endif /*OPLUS_FEATURE_SWITCH_CHECK*/
+
 #if defined(OPLUS_FEATURE_MODEM_MINIDUMP) && defined(CONFIG_OPLUS_FEATURE_MODEM_MINIDUMP)
 #define MAX_REASON_LEN 300
 #define MAX_DEVICE_NAME 16
@@ -141,25 +154,11 @@ struct dev_crash_report_work {
 	char   crash_reason[MAX_REASON_LEN];
 };
 #endif /*OPLUS_FEATURE_MODEM_MINIDUMP*/
-
-#ifdef OPLUS_FEATURE_ADSP_RECOVERY
-extern void oplus_adsp_set_ssr_state(bool state);
-extern bool oplus_adsp_get_ssr_state(void);
-extern int oplus_adsp_get_restart_level(const char *name);
-#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
-
 extern int subsys_get_restart_level(struct subsys_device *dev);
 extern int subsystem_restart_dev(struct subsys_device *dev);
 #if defined(OPLUS_FEATURE_MODEM_MINIDUMP) && defined(CONFIG_OPLUS_FEATURE_MODEM_MINIDUMP)
 extern void subsystem_schedule_crash_uevent_work(struct device *dev, const char *device_name, char *reason);
 #endif /*OPLUS_FEATURE_MODEM_MINIDUMP*/
-
-#ifdef OPLUS_FEATURE_SWITCH_CHECK
-//Add for: check fw status for switch issue
-extern void __wlan_subsystem_send_uevent(struct device *dev, char *reason,const char *name);
-extern void wlan_subsystem_send_uevent(struct subsys_device *dev, char *reason,const char *name);
-#endif /*OPLUS_FEATURE_SWITCH_CHECK*/
-
 extern int subsystem_restart(const char *name);
 extern int subsystem_crashed(const char *name);
 
@@ -183,6 +182,7 @@ static inline void complete_shutdown_ack(struct subsys_desc *desc)
 }
 struct subsys_device *find_subsys_device(const char *str);
 #else
+
 
 #ifdef OPLUS_FEATURE_ADSP_RECOVERY
 static inline void oplus_adsp_set_ssr_state(bool ssr_state) { }
@@ -214,6 +214,7 @@ static inline void subsystem_schedule_crash_uevent_work(struct device *dev, cons
 	return;
 }
 #endif /*OPLUS_FEATURE_MODEM_MINIDUMP*/
+
 
 static inline int subsystem_restart(const char *name)
 {
