@@ -155,8 +155,10 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > c_conn->thermal_max_brightness)
 		brightness = c_conn->thermal_max_brightness;
 #ifdef OPLUS_BUG_STABILITY
-	if (brightness > 0 && brightness < dsi_display->panel->bl_config.bl_min_level)
-		brightness = dsi_display->panel->bl_config.bl_min_level;
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		if (brightness > 0 && brightness < dsi_display->panel->bl_config.bl_min_level)
+			brightness = dsi_display->panel->bl_config.bl_min_level;
+	}
 #endif
 
 
@@ -306,8 +308,11 @@ static int sde_backlight_setup(struct sde_connector *c_conn,
 #ifndef OPLUS_BUG_STABILITY
 	props.brightness = brightness_max_level;
 #else
-	props.brightness = dsi_bl_config->brightness_default_level;
-#endif  /*VENDOR_EDIT*/
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI)
+		props.brightness = dsi_bl_config->brightness_default_level;
+	else
+		props.brightness = brightness_max_level;
+#endif  /*OPLUS_BUG_STABILITY*/
 	snprintf(bl_node_name, BL_NODE_NAME_SIZE, "panel%u-backlight",
 							display_count);
 	c_conn->bl_device = backlight_device_register(bl_node_name, dev->dev,
@@ -904,7 +909,8 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 	c_conn->unset_bl_level = 0;
 
 #ifdef OPLUS_BUG_STABILITY
-	mutex_unlock(&bd->update_lock);
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI)
+		mutex_unlock(&bd->update_lock);
 #endif /* OPLUS_BUG_STABILITY */
 
 	return rc;
