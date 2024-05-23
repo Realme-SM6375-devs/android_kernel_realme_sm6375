@@ -851,7 +851,13 @@ static int __cam_req_mgr_send_req(struct cam_req_mgr_core_link *link,
 				idx, dev->dev_info.name);
 			continue;
 		}
-
+#if 0
+		if (slot->ops.apply_at_eof && slot->ops.skip_next_frame) {
+			CAM_ERR(CAM_CRM,
+				"Both EOF and SOF trigger is not supported");
+			return -EINVAL;
+		}
+#endif
 		if (dev->dev_hdl != slot->ops.dev_hdl) {
 			CAM_DBG(CAM_CRM,
 				"Dev_hdl : %d Not matched:: Expected dev_hdl: %d",
@@ -2787,7 +2793,21 @@ int cam_req_mgr_process_add_req(void *priv, void *data)
 			device->dev_info.name);
 	}
 
-	if (add_req->trigger_eof) {
+	if ((add_req->skip_at_eof & 0xFF) > slot->inject_delay_at_eof) {
+		slot->inject_delay_at_eof = (add_req->skip_at_eof & 0xFF);
+		CAM_DBG(CAM_CRM,
+			"Req_id %llu injecting delay %llu frame at EOF by %s",
+			add_req->req_id,
+			slot->inject_delay_at_eof,
+			device->dev_info.name);
+	}
+
+	/* Used when Precise Flash is enabled */
+#if 0
+	if ((add_req->trigger_eof) && (!add_req->skip_before_applying)) {
+#else
+	if ((add_req->trigger_eof) && (!add_req->skip_at_sof)) {
+#endif
 		slot->ops.apply_at_eof = true;
 		slot->ops.dev_hdl = add_req->dev_hdl;
 		CAM_DBG(CAM_REQ,
@@ -3996,7 +4016,7 @@ int cam_req_mgr_link(struct cam_req_mgr_ver_info *link_info)
 	spin_unlock_bh(&link->link_state_spin_lock);
 
 	/* Create worker for current link */
-	snprintf(buf, sizeof(buf), "%x-%x",
+	snprintf(buf, sizeof(buf), "CRMCORE_%x-%x",
 		link_info->u.link_info_v1.session_hdl, link->link_hdl);
 	wq_flag = CAM_WORKQ_FLAG_HIGH_PRIORITY | CAM_WORKQ_FLAG_SERIAL;
 	rc = cam_req_mgr_workq_create(buf, CRM_WORKQ_NUM_TASKS,
@@ -4108,7 +4128,7 @@ int cam_req_mgr_link_v2(struct cam_req_mgr_ver_info *link_info)
 	spin_unlock_bh(&link->link_state_spin_lock);
 
 	/* Create worker for current link */
-	snprintf(buf, sizeof(buf), "%x-%x",
+	snprintf(buf, sizeof(buf), "CRMCORE_%x-%x",
 		link_info->u.link_info_v2.session_hdl, link->link_hdl);
 	wq_flag = CAM_WORKQ_FLAG_HIGH_PRIORITY | CAM_WORKQ_FLAG_SERIAL;
 	rc = cam_req_mgr_workq_create(buf, CRM_WORKQ_NUM_TASKS,

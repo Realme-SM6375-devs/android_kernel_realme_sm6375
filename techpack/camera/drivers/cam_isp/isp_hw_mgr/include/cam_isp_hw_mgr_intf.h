@@ -29,6 +29,10 @@
 /* Appliacble vote paths for dual ife, based on no. of UAPI definitions */
 #define CAM_ISP_MAX_PER_PATH_VOTES 40
 
+#ifndef OPLUS_FEATURE_CAMERA_COMMON
+#define OPLUS_FEATURE_CAMERA_COMMON
+#endif
+
 /*
  * Maximum configuration entry size  - This is based on the
  * worst case DUAL IFE use case plus some margin.
