@@ -800,11 +800,12 @@ int32_t cam_flash_init_module(void)
 {
 	int32_t rc = 0;
 
-#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	#ifdef OPLUS_FEATURE_CAMERA_COMMON
 	reigster_flash_shutdown_notifier();
-#endif
+	#endif
 
 	CAM_DBG(CAM_FLASH, "flash platform probe start");
+
 	rc = platform_driver_register(&cam_flash_platform_driver);
 	if (rc < 0) {
 		CAM_ERR(CAM_FLASH, "platform probe failed rc: %d", rc);
@@ -822,9 +823,9 @@ int32_t cam_flash_init_module(void)
 
 void cam_flash_exit_module(void)
 {
-#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	#ifdef OPLUS_FEATURE_CAMERA_COMMON
 	unreigster_flash_shutdown_notifier();
-#endif
+	#endif
 	platform_driver_unregister(&cam_flash_platform_driver);
 	i2c_del_driver(&cam_flash_i2c_driver);
 }

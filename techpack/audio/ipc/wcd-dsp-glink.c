@@ -17,6 +17,17 @@
 #include <linux/vmalloc.h>
 #include <linux/rpmsg.h>
 #include "audio/sound/wcd-dsp-glink.h"
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include "feedback/oplus_audio_kernel_fb.h"
+#ifdef dev_err
+#undef dev_err
+#define dev_err dev_err_fb_fatal_delay
+#endif
+#ifdef pr_err
+#undef pr_err
+#define pr_err pr_err_fb
+#endif
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 
 #define WDSP_GLINK_DRIVER_NAME "wcd-dsp-glink"
 #define WDSP_MAX_WRITE_SIZE (256 * 1024)

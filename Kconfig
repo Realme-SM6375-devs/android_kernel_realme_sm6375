@@ -18,7 +18,8 @@ config OPLUS_SYSTEM_KERNEL_MTK
   default n
   help
 	define this config to Distinguish between qcom and mtk platform
-#endif
+source "Kconfig.debug"
+#endif	
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 config OPLUS_FEATURE_CHG_MISC

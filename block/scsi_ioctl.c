@@ -425,7 +425,6 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 	struct scsi_device *sdev = NULL;
 #endif
 
-
 	if (!sic)
 		return -EINVAL;
 
@@ -468,7 +467,6 @@ int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
 		cmdlen = 16;
 	}
 #endif
-
 
 	/*
 	 * get command and data to send to device, if any

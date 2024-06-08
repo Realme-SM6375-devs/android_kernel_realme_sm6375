@@ -79,6 +79,7 @@
 
 #define NFC_MAGIC 0xE9
 
+#define NFC_GPIO_SET_WAIT_TIME_USEC     (20000)
 // Ioctls
 // The type should be aligned with MW HAL definitions
 

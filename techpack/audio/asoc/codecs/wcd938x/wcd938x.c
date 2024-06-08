@@ -2173,6 +2173,10 @@ static int wcd938x_event_notify(struct notifier_block *block,
 						     NULL);
 		wcd938x->mbhc->wcd_mbhc.deinit_in_progress = true;
 		mbhc = &wcd938x->mbhc->wcd_mbhc;
+		#ifdef OPLUS_ARCH_EXTENDS
+		mbhc->plug_before_ssr = mbhc->current_plug;
+		pr_info("%s: mbhc->plug_before_ssr=%d\n", __func__, mbhc->plug_before_ssr);
+		#endif /* OPLUS_ARCH_EXTENDS */
 		if(mbhc->mbhc_cfg)
 			wcd938x->usbc_hs_status = get_usbc_hs_status(component,
 							mbhc->mbhc_cfg);
@@ -2192,10 +2196,6 @@ static int wcd938x_event_notify(struct notifier_block *block,
 		regcache_sync(wcd938x->regmap);
 		/* Initialize MBHC module */
 		mbhc = &wcd938x->mbhc->wcd_mbhc;
-		#ifdef OPLUS_ARCH_EXTENDS
-		mbhc->plug_before_ssr = mbhc->current_plug;
-		pr_info("%s: mbhc->plug_before_ssr=%d\n", __func__, mbhc->plug_before_ssr);
-		#endif /* OPLUS_ARCH_EXTENDS */
 		ret = wcd938x_mbhc_post_ssr_init(wcd938x->mbhc, component);
 		if (ret) {
 			dev_err(component->dev, "%s: mbhc initialization failed\n",
@@ -3208,7 +3208,11 @@ static int wcd93xx_die_crk_det_en_put(struct snd_kcontrol *kcontrol,
 		ctl_value = det_en[ucontrol->value.enumerated.item[0]];
 		ret = snd_soc_component_update_bits(component,
 			WCD938X_DIE_CRACK_DIE_CRK_DET_EN, 0xFF, ctl_value);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		dev_info(component->dev, "%s: det en update value %4x, return %d \n", __func__,ctl_value, ret);
+#else
 		dev_err(component->dev, "%s: det en update value %4x, return %d \n", __func__,ctl_value, ret);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 	} else {
 		dev_err(component->dev,
 			"%s: out of index ,please check your input value \n", __func__);
@@ -3240,7 +3244,11 @@ static int wcd93xx_die_crk_det_en_get(struct snd_kcontrol *kcontrol,
 	}
 
 	regmap_read(wcd938x->regmap, WCD938X_DIE_CRACK_DIE_CRK_DET_EN, &reg);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	dev_info(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_DIE_CRK_DET_EN, reg);
+#else
 	dev_err(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_DIE_CRK_DET_EN, reg);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	ucontrol->value.enumerated.item[0] = get_enum_index_from_reg(det_en, ARRAY_SIZE(det_en), reg);
 
@@ -3265,7 +3273,11 @@ static int wcd93xx_die_crk_det_int1_put(struct snd_kcontrol *kcontrol,
 		ctl_value = det_int1[ucontrol->value.enumerated.item[0]];
 		ret = snd_soc_component_update_bits(component,
 			WCD938X_DIE_CRACK_INT_DIE_CRK_DET_INT1, 0xFF, ctl_value);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		dev_info(component->dev, "%s: det int1 update value %4x, return %d \n", __func__,ctl_value, ret);
+#else
 		dev_err(component->dev, "%s: det int1 update value %4x, return %d \n", __func__,ctl_value, ret);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	} else {
 		dev_err(component->dev, "%s: out of index ,please check your input value \n", __func__);
@@ -3297,7 +3309,11 @@ static int wcd93xx_die_crk_det_int1_get(struct snd_kcontrol *kcontrol,
 	}
 
 	regmap_read(wcd938x->regmap, WCD938X_DIE_CRACK_INT_DIE_CRK_DET_INT1, &reg);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	dev_info(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_INT_DIE_CRK_DET_INT1, reg);
+#else
 	dev_err(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_INT_DIE_CRK_DET_INT1, reg);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	ucontrol->value.enumerated.item[0] = get_enum_index_from_reg(det_int1, ARRAY_SIZE(det_int1), reg);
 
@@ -3326,7 +3342,11 @@ static int wcd93xx_die_crk_det_out_get(struct snd_kcontrol *kcontrol,
 	}
 
 	regmap_read(wcd938x->regmap, WCD938X_DIE_CRACK_DIE_CRK_DET_OUT, &reg);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	dev_info(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_DIE_CRK_DET_OUT, reg);
+#else
 	dev_err(component->dev, "%04x:%04x\n", WCD938X_DIE_CRACK_DIE_CRK_DET_OUT, reg);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	ucontrol->value.enumerated.item[0] = reg;
 

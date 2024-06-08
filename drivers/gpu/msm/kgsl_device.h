@@ -528,6 +528,7 @@ struct kgsl_snapshot {
 	bool first_read;
 	bool recovered;
 	struct kgsl_device *device;
+
 	#if IS_ENABLED(CONFIG_DRM_MSM)
 	char snapshot_hashid[96];
 	#endif

@@ -40,6 +40,11 @@ obj-$(CONFIG_OPLUS_DEVICE_IFNO)  +=  oplus/device_info/
 obj-$(CONFIG_OPLUS_FEATURE_SENSOR_CFG) += oplus/sensor/
 #endif
 
+#ifdef CONFIG_OPLUS_SENSOR_CONSUMER_IR
+# Add for consumer ir
+obj-$(CONFIG_OPLUS_SENSOR_CONSUMER_IR_CORE) += oplus/oplus_consumer_ir/
+#endif /* CONFIG_OPLUS_SENSOR_CONSUMER_IR */
+
 #ifdef OPLUS_FEATURE_ESIM
 obj-y += oplus/misc/
 #endif /* OPLUS_FEATURE_ESIM */

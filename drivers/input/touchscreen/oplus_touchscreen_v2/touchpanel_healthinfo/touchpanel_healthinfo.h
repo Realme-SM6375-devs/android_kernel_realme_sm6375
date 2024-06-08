@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #ifndef _TOUCHPANEL_HEALTHONFO_
@@ -86,6 +86,8 @@ typedef enum {
 	HEALTH_BELOW_RATE,
 	HEALTH_AVDD,
 	HEALTH_VDDI,
+	HEALTH_RAW_TOUCH,
+	HEALTH_GRIP_RECLINING,
 } healthinfo_type;
 
 void reset_healthinfo_time_counter(u64 *time_counter);

@@ -188,4 +188,7 @@ class_remove_file_ns
   ktime_get_boottime_ts64
   get_monotonic_boottime64
   overflowuid
+  __tracepoint_android_vh_binder_new_ref
+  __tracepoint_android_vh_binder_proc_transaction
+  __tracepoint_android_vh_binder_del_ref
 #endif

@@ -129,6 +129,7 @@ struct cam_sensor_ctrl_t {
 	enum cam_sensor_power_state sensor_power_state;
 	enum cam_sensor_setting_state sensor_initsetting_state;
 	struct task_struct *sensor_open_thread;
+	unsigned int camera_sensor_cmd;
 	#endif // OPLUS_FEATURE_CAMERA_COMMON
 };
 

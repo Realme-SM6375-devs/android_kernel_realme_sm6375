@@ -458,6 +458,7 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 			PARAM_OVRD_MASK, phy->param_ovrd3);
 	}
 
+
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	dev_err(uphy->dev, "param ovrride x0:%02x x1:%02x x2:%02x x3:%02x\n",
 		phy->param_ovrd0, phy->param_ovrd1, phy->param_ovrd2, phy->param_ovrd3);

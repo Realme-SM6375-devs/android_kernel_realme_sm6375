@@ -462,7 +462,7 @@ struct vss_icommon_cmd_set_param {
 	uint8_t param_data[0];
 } __packed;
 
-#ifdef OPLUS_FEATURE_AUDIODETECT
+#if defined OPLUS_FEATURE_AUDIODETECT || defined CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 struct vss_icommon_cmd_get_param {
 	/* APR Header */
 	struct apr_hdr apr_hdr;

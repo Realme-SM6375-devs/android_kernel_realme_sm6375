@@ -88,7 +88,6 @@
 
 static DEFINE_MUTEX(msm_release_lock);
 
-
 #ifdef OPLUS_BUG_STABILITY
 extern int __init lcd_bias_init(void);
 extern void __exit lcd_bias_exit(void);

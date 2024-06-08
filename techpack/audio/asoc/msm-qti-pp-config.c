@@ -16,6 +16,9 @@
 #ifdef OPLUS_FEATURE_AUDIODETECT
 #include <dsp/q6voice.h>
 #endif /* OPLUS_FEATURE_AUDIODETECT */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include "dsp/oplus_lvve_err_fb.h"
+#endif
 
 #include "msm-qti-pp-config.h"
 #include "msm-pcm-routing-v2.h"
@@ -1944,7 +1947,6 @@ static const struct snd_kcontrol_new oplus_auddet_mixer_controls[] = {
 };
 #endif /* OPLUS_FEATURE_AUDIODETECT */
 
-
 static const struct snd_kcontrol_new eq_enable_mixer_controls[] = {
 	SOC_SINGLE_EXT("MultiMedia1 EQ Enable", SND_SOC_NOPM,
 	MSM_FRONTEND_DAI_MULTIMEDIA1, 1, 0, msm_qti_pp_get_eq_enable_mixer,
@@ -2183,5 +2185,8 @@ void msm_qti_pp_add_controls(struct snd_soc_component *component)
 	snd_soc_add_component_controls(component, oplus_auddet_mixer_controls,
 			ARRAY_SIZE(oplus_auddet_mixer_controls));
 #endif /* OPLUS_FEATURE_AUDIODETECT */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	oplus_lvve_err_fb_add_controls(component);
+#endif
 }
 #endif /* CONFIG_QTI_PP */

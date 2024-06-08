@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -301,7 +301,7 @@ exit:
 /*********** End of special i2c tranfer interface used for goodix read/write******************/
 
 
-/********* Start of function that work for oplus_touchpanel_operations callbacks***************/
+/********* Start of function that work for oppo_touchpanel_operations callbacks***************/
 static int goodix_clear_irq(void *chip_data)
 {
 	int ret = -1;
@@ -969,10 +969,10 @@ int goodix_get_channel_num(struct i2c_client *client, u32 *sen_num,
 	return 0;
 }
 
-/*********** End of function that work for oplus_touchpanel_operations callbacks***************/
+/*********** End of function that work for oppo_touchpanel_operations callbacks***************/
 
 
-/********* Start of implementation of oplus_touchpanel_operations callbacks********************/
+/********* Start of implementation of oppo_touchpanel_operations callbacks********************/
 static int goodix_ftm_process(void *chip_data)
 {
 	struct chip_data_gt9886 *chip_info = (struct chip_data_gt9886 *)chip_data;
@@ -3228,7 +3228,7 @@ struct oplus_touchpanel_operations goodix_ops = {
 	.health_report               = goodix_get_health_info,
 	.set_high_frame_rate         = goodix_set_high_frame_rate,
 };
-/********* End of implementation of oplus_touchpanel_operations callbacks**********************/
+/********* End of implementation of oppo_touchpanel_operations callbacks**********************/
 static void goodix_detailed_debug_info_read(struct seq_file *s, void *chip_data, debug_type debug_type)
 {
 	int ret = -1, i = 0, j = 0, retry = 0;
@@ -6320,12 +6320,12 @@ int __init tp_driver_init_gt9886(void)
 	TPD_INFO("%s is called\n", __func__);
 
 	if (!tp_judge_ic_match(TPD_DEVICE)) {
-		return -1;
+		return 0;
 	}
 
 	if (i2c_add_driver(&tp_i2c_driver) != 0) {
 		TPD_INFO("unable to add i2c driver.\n");
-		return -1;
+		return 0;
 	}
 
 	return 0;

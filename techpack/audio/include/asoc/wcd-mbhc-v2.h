@@ -11,6 +11,7 @@
 #include <sound/jack.h>
 #ifdef OPLUS_FEATURE_MM_FEEDBACK
 #include <linux/pm_wakeup.h>
+#define HEADSET_ERR_FB_VERSION    "1.0.0"
 #endif /* OPLUS_FEATURE_MM_FEEDBACK */
 
 #define TOMBAK_MBHC_NC	0
@@ -166,6 +167,11 @@ do {                                                    \
 #ifdef OPLUS_ARCH_EXTENDS
 #define HIGH_HPH_DETECT_RETRY_CNT 5
 #endif
+
+#ifdef OPLUS_ARCH_EXTENDS
+extern struct delayed_work hskey_block_work;
+extern bool g_hskey_block_flag;
+#endif /* OPLUS_ARCH_EXTENDS */
 
 enum wcd_mbhc_detect_logic {
 	WCD_DETECTION_LEGACY,

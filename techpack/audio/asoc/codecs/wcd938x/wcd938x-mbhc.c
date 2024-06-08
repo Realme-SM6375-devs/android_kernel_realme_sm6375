@@ -1115,7 +1115,7 @@ int wcd938x_mbhc_init(struct wcd938x_mbhc **mbhc,
 	pdata = dev_get_platdata(component->dev);
 	if (!pdata) {
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		dev_err_fb_delay(component->dev, "%s: pdata pointer is NULL\n", __func__);
+		dev_err_fb_fatal_delay(component->dev, "%s: pdata pointer is NULL\n", __func__);
 #else
 		dev_err(component->dev, "%s: pdata pointer is NULL\n",
 			__func__);
@@ -1136,7 +1136,7 @@ int wcd938x_mbhc_init(struct wcd938x_mbhc **mbhc,
 				wcd_mbhc->enable_hp_impedance_detect = false;
 			}
 		} else
-			dev_err(component->dev, "%s: Looking up %s property in node %s failed\n",
+			dev_info(component->dev, "%s: Looking up %s property in node %s failed\n",
 				__func__, mbhc_enable_hp_impedance_detect, component->dev->of_node->full_name);
 	} else {
 		dev_info(component->dev, "%s: oplus,mbhc_enable_hp_impedance_detect DT property not found\n",
@@ -1162,7 +1162,7 @@ int wcd938x_mbhc_init(struct wcd938x_mbhc **mbhc,
 
 	if (ret) {
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		dev_err_fb_delay(component->dev, "%s: mbhc initialization failed\n", __func__);
+		dev_err_fb_fatal_delay(component->dev, "%s: mbhc initialization failed\n", __func__);
 #else
 		dev_err(component->dev, "%s: mbhc initialization failed\n",
 			__func__);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #ifndef _TOUCHPANEL_EVENTNOTIFY_H
@@ -10,9 +10,6 @@
 
 struct touchpanel_event {
     int touchpanel_id;
-#ifndef CONFIG_OPLUS_MTK_DRM_GKI_NOTIFY
-    struct timeval time;
-#endif
     int x;
     int y;
     int fid;       /* Finger ID */

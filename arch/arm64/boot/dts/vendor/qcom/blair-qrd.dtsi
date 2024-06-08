@@ -5,6 +5,7 @@
 #include "display/holi-sde-display-qrd-pm6125.dtsi"
 #include "display/blair-sde-display-qrd.dtsi"
 #include "holi-thermal-overlay-pm6125.dtsi"
+
 &wcd938x_codec {
 	cdc-vdd-rxtx-supply = <&L9A>;
 	cdc-vddio-supply = <&L9A>;
@@ -17,7 +18,6 @@
 	 */
 	cdc-vdd-mic-bias-supply = <>;
 };
-
 
 &wcd937x_codec {
 	status = "ok";
@@ -75,7 +75,7 @@
 	qcom,vdd-io-voltage-level = <1800000 2960000>;
 	qcom,vdd-io-current-level = <0 22000>;
 
-	/*oplus design sd_detect active is HIGH when sd card plug in*/
+	/*oppo design sd_detect active is HIGH when sd card plug in*/
 	/*cd-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;*/
 	cd-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
 };
@@ -242,7 +242,7 @@
 			};
 
 			modem_skin_trip0: modem-skin-trip0 {
-				temperature = <42000>;
+				temperature = <60000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -260,7 +260,7 @@
 			};
 
 			modem_skin_trip1: modem-skin-trip1 {
-				temperature = <44000>;
+				temperature = <62000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -282,6 +282,7 @@
 				hysteresis = <1000>;
 				type = "passive";
 			};
+
 #if OPLUS_STOP_THERAML_ENGINE
 /*
 			gpu_trip: gpu-trip {
@@ -298,7 +299,7 @@
 */
 #endif
 			cx_trip: cx-trip {
-				temperature = <55000>;
+				temperature = <64000>;
 				hysteresis = <5000>;
 				type = "passive";
 			};
@@ -327,7 +328,7 @@
 
 			silver-cdev {
 				trip = <&silver_trip>;
-				// throttle to 1516800KH
+				// throttle to 1516800KHz
 				cooling-device = <&CPU0 THERMAL_NO_LIMIT
 							(THERMAL_MAX_LIMIT-6)>;
 			};
@@ -340,7 +341,110 @@
 			};
 */
 #endif
+
+			/*modem-skin-cdev0 {
+				trip = <&modem_skin_trip0>;
+				cooling-device = <&modem_pa 1 1>;
+			};
+
+			modem-skin-cdev1 {
+				trip = <&modem_skin_trip1>;
+				cooling-device = <&modem_pa 2 2>;
+			};
+
+			modem-skin-cdev2 {
+				trip = <&cx_trip>;
+				cooling-device = <&modem_pa 3 3>;
+			};*/
 		};
+	};
+
+	pa-therm0-step {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "step_wise";
+		thermal-sensors = <&pm6125_adc_tm ADC5_AMUX_THM1_100K_PU>;
+
+		trips {
+			modem_trip0: modem-trip0 {
+				temperature = <60000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+
+			modem_trip1: modem-trip1 {
+				temperature = <62000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+
+			modem_trip2: modem-trip2 {
+				temperature = <64000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+		};
+
+		/*cooling-maps {
+			modem-cdev0 {
+				trip = <&modem_trip0>;
+				cooling-device = <&modem_pa 1 1>;
+			};
+
+			modem-cdev1 {
+				trip = <&modem_trip1>;
+				cooling-device = <&modem_pa 2 2>;
+			};
+
+			modem-cdev2 {
+				trip = <&modem_trip2>;
+				cooling-device = <&modem_pa 3 3>;
+			};
+		};*/
+	};
+
+	xo-therm-step {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-governor = "step_wise";
+		thermal-sensors = <&pmk8350_adc_tm PMK8350_ADC7_AMUX_THM1_100K_PU>;
+
+		trips {
+			modem_pa_fr1_trip0: modem-pa-fr1-trip0 {
+				temperature = <60000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+
+			modem_pa_fr1_trip1: modem-pa-fr1-trip1 {
+				temperature = <62000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+
+			modem_pa_fr1_trip2: modem-pa-fr1-trip2 {
+				temperature = <64000>;
+				hysteresis = <4000>;
+				type = "passive";
+			};
+		};
+
+		/*cooling-maps {
+			modem_pa_fr1_cdev0 {
+				trip = <&modem_pa_fr1_trip0>;
+				cooling-device = <&modem_pa_fr1 1 1>;
+			};
+
+			modem_pa_fr1_cdev1 {
+				trip = <&modem_pa_fr1_trip1>;
+				cooling-device = <&modem_pa_fr1 2 2>;
+			};
+
+			modem_pa_fr1_cdev2 {
+				trip = <&modem_pa_fr1_trip2>;
+				cooling-device = <&modem_pa_fr1 3 3>;
+			};
+		};*/
 	};
 };
 

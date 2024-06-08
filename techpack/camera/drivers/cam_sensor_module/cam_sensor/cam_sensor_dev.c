@@ -77,7 +77,10 @@ static long cam_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 		break;
 	}
 	case VIDIOC_CAM_SENSOR_STATR:
-		rc = cam_sensor_start(s_ctrl);
+		rc = cam_sensor_start(s_ctrl, VIDIOC_CAM_SENSOR_STATR);
+        break;
+	case VIDIOC_CAM_SENSOR_STATR_NO_WRITE_IZOOM:
+		rc = cam_sensor_start(s_ctrl, VIDIOC_CAM_SENSOR_STATR_NO_WRITE_IZOOM);
 		break;
 	case VIDIOC_CAM_SENSOR_STOP:
 		rc = cam_sensor_stop(s_ctrl);
@@ -453,7 +456,6 @@ static int32_t cam_sensor_driver_platform_probe(
 	int rc = 0;
 
 	CAM_DBG(CAM_SENSOR, "Adding Sensor component");
-
 	rc = component_add(&pdev->dev, &cam_sensor_component_ops);
 	if (rc)
 		CAM_ERR(CAM_SENSOR, "failed to add component rc: %d", rc);

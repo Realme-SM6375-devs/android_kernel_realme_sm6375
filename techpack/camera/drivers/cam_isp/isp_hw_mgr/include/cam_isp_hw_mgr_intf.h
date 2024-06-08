@@ -33,13 +33,11 @@
 #define OPLUS_FEATURE_CAMERA_COMMON
 #endif
 
-#ifdef OPLUS_FEATURE_CAMERA_COMMON
 /*
  * Maximum configuration entry size  - This is based on the
  * worst case DUAL IFE use case plus some margin.
  */
 #define CAM_ISP_CTX_CFG_MAX                     25
-#endif /*OPLUS_FEATURE_CAMERA_COMMON*/
 
 /**
  *  enum cam_isp_hw_event_type - Collection of the ISP hardware events

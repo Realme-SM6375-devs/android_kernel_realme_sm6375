@@ -112,7 +112,6 @@
 				linux,can-disable;
 			};
 		};
-
     //#ifdef OPLUS_FEATURE_TP_BASIC
 	oplus_sim_detect {
 		compatible = "oplus, sim_detect";

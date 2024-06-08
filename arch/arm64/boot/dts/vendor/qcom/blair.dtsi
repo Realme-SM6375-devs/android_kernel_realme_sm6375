@@ -314,7 +314,6 @@
 
 	cdsp_secure_heap_mem: cdsp_secure_heap_mem@80c00000 {
 		no-map;
-
 		reg = <0x0 0x80c00000 0x0 0xA00000>;
 	};
 
@@ -396,6 +395,7 @@
 		mem-type = <2>;
 	};
 */
+
 	/* global autoconfigured region for contiguous allocations */
 	linux,cma {
 		compatible = "shared-dma-pool";

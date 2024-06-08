@@ -4,7 +4,6 @@ vendor  := $(dtstree)/vendor
 ifneq "$(wildcard $(vendor)/Makefile)" ""
     subdir-y += vendor
 else
-
 #ifdef OPLUS_BUG_STABILITY
 #subdir-y += actions
 #subdir-y += al
@@ -13,7 +12,7 @@ else
 #subdir-y += amd
 #subdir-y += amlogic
 #subdir-y += apm
-#subdir-y += arm
+subdir-y += arm
 #subdir-y += bitmain
 #subdir-y += broadcom
 #subdir-y += cavium
@@ -25,7 +24,7 @@ else
 #subdir-y += marvell
 #subdir-y += mediatek
 #subdir-y += nvidia
-#subdir-y += qcom
+subdir-y += qcom
 #subdir-y += realtek
 #subdir-y += renesas
 #subdir-y += rockchip
@@ -36,5 +35,4 @@ else
 #subdir-y += xilinx
 #subdir-y += zte
 #endif
-
 endif

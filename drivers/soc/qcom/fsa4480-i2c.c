@@ -541,6 +541,7 @@ int fsa4480_reg_notifier(struct notifier_block *nb,
 				(&fsa_priv->fsa4480_notifier, nb);
 	if (rc)
 		return rc;
+
 	/*
 	 * as part of the init sequence check if there is a connected
 	 * USB C analog adapter

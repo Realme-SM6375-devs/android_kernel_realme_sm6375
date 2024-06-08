@@ -188,7 +188,7 @@ void gpio_set_ven(struct nfc_dev *nfc_dev, int value)
 	if (gpio_get_value(nfc_dev->gpio.ven) != value) {
 		gpio_set_value(nfc_dev->gpio.ven, value);
 		// hardware dependent delay
-		usleep_range(10000, 10100);
+		usleep_range(NFC_GPIO_SET_WAIT_TIME_USEC, NFC_GPIO_SET_WAIT_TIME_USEC + 100);
 	}
 }
 
@@ -826,6 +826,7 @@ int nfcc_hw_check(struct nfc_dev *nfc_dev)
 		nfc_dev->nfc_enable_intr(nfc_dev);
 	else {
 		/* making sure that the NFCC starts in a clean state. */
+		usleep_range(NFC_GPIO_SET_WAIT_TIME_USEC,NFC_GPIO_SET_WAIT_TIME_USEC + 100);//add for Satisfy VEN spec of  15ms delay
 		gpio_set_ven(nfc_dev, 1);/* HPD : Enable*/
 		gpio_set_ven(nfc_dev, 0);/* ULPM: Disable */
 		gpio_set_ven(nfc_dev, 1);/* HPD : Enable*/

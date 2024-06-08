@@ -7,6 +7,7 @@
 #define _CAM_REQ_MGR_CORE_H_
 
 #include <linux/spinlock.h>
+#include <linux/kthread.h>
 #include "cam_req_mgr_interface.h"
 #include "cam_req_mgr_core_defs.h"
 #include "cam_req_mgr_timer.h"

@@ -274,6 +274,7 @@
 	};
 };
 
+
 //#ifdef OPLUS_FEATURE_THERMAL_HORAE
 / {
         shell_front {

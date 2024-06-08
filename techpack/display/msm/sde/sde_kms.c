@@ -71,6 +71,10 @@
 #include "oplus_dc_diming.h"
 #endif
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+#include <soc/oplus/system/theia_send_event.h> /* for theia_send_event etc */
+#endif
+
 /* defines for secure channel call */
 #define MEM_PROTECT_SD_CTRL_SWITCH 0x18
 #define MDP_DEVICE_ID            0x1A
@@ -1166,6 +1170,9 @@ static void sde_kms_prepare_commit(struct msm_kms *kms,
 		SDE_MM_ERROR("DisplayDriverID@@415$$failed to enable power resources %d\n", rc);
 		#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 		#endif /* OPLUS_BUG_STABILITY */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+		theia_send_event(THEIA_EVENT_HARDWARE_ERROR, THEIA_LOGINFO_KERNEL_LOG, current->pid, "failed to enable power resources");
+#endif
 		SDE_EVT32(rc, SDE_EVTLOG_ERROR);
 		goto end;
 	}

@@ -24,6 +24,7 @@
 #include "dsi_pwr.h"
 #include "dsi_catalog.h"
 #include "dsi_panel.h"
+#include "oplus_display_private_api.h"
 
 #include "sde_dbg.h"
 
@@ -32,6 +33,10 @@
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
 #endif //CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 #endif /* OPLUS_BUG_STABILITY */
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+#include <soc/oplus/system/theia_send_event.h> /* for theia_send_event etc */
+#endif
 
 #define DSI_CTRL_DEFAULT_LABEL "MDSS DSI CTRL"
 
@@ -452,6 +457,9 @@ static void dsi_ctrl_dma_cmd_wait_for_done(struct work_struct *work)
 				mm_fb_display_kevent("DisplayDriverID@@405$$", MM_FB_KEY_RATELIMIT_NONE, "dma_tx irq trigger fixup irq status=%x", status);
 			}
 			mm_fb_display_kevent("DisplayDriverID@@413$$", MM_FB_KEY_RATELIMIT_1H, "dma_tx irq trigger err irq status=%x", status);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+			theia_send_event(THEIA_EVENT_PTR_TIMEOUT_BLACKSCREEN, THEIA_LOGINFO_KERNEL_LOG, current->pid, "dma_tx irq trigger error");
+#endif
 #endif //CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 #endif /* OPLUS_BUG_STABILITY */
 
@@ -1103,6 +1111,9 @@ static int dsi_ctrl_enable_supplies(struct dsi_ctrl *dsi_ctrl, bool enable)
 			DSI_CTRL_MM_ERR(dsi_ctrl, "DisplayDriverID@@406$$Power resource enable failed, rc=%d\n", rc);
 			#endif
 			#endif
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+			theia_send_event(THEIA_EVENT_HARDWARE_ERROR, THEIA_LOGINFO_KERNEL_LOG, current->pid, "Power resource enable failed");
+#endif
 			goto error;
 		}
 
@@ -1116,6 +1127,9 @@ static int dsi_ctrl_enable_supplies(struct dsi_ctrl *dsi_ctrl, bool enable)
 				DSI_CTRL_MM_ERR(dsi_ctrl, "DisplayDriverID@@406$$failed to enable host power regs\n");
 				#endif
 				#endif
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+				theia_send_event(THEIA_EVENT_HARDWARE_ERROR, THEIA_LOGINFO_KERNEL_LOG, current->pid, "failed to enable host power regs");
+#endif
 				goto error_get_sync;
 			}
 		}
@@ -1622,6 +1636,7 @@ static void print_cmd_desc(struct dsi_ctrl *dsi_ctrl, const struct mipi_dsi_msg 
 	DSI_CTRL_ERR(dsi_ctrl, "%s\n", buf);
 }
 extern int dsi_cmd_log_enable;
+extern int oplus_dsi_log_type;
 #endif /* OPLUS_BUG_STABILITY */
 
 static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
@@ -1638,7 +1653,7 @@ static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
 	u8 *cmdbuf;
 
 #ifdef OPLUS_BUG_STABILITY
-	if (dsi_cmd_log_enable)
+	if (dsi_cmd_log_enable || (OPLUS_DEBUG_LOG_CMD & oplus_dsi_log_type))
 		print_cmd_desc(dsi_ctrl, msg);
 #endif /* OPLUS_BUG_STABILITY */
 

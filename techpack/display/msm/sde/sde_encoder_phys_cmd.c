@@ -15,6 +15,9 @@
 #include <soc/oplus/system/oplus_mm_kevent_fb.h>
 #endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 #endif /*OPLUS_BUG_STABILITY*/
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+#include <soc/oplus/system/theia_send_event.h> /* for theia_send_event etc */
+#endif
 
 #define SDE_DEBUG_CMDENC(e, fmt, ...) SDE_DEBUG("enc%d intf%d " fmt, \
 		(e) && (e)->base.parent ? \
@@ -527,6 +530,10 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 		mm_fb_display_kevent("DisplayDriverID@@409$$", MM_FB_KEY_RATELIMIT_NONE, "ppdone timeout failed pp:%d kickoff timeout", phys_enc->hw_pp->idx - PINGPONG_0);
 #endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 #endif /* OPLUS_BUG_STABILITY */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_THEIA)
+		theia_send_event(THEIA_EVENT_PTR_TIMEOUT_HANG, THEIA_LOGINFO_KERNEL_LOG, current->pid, "wr_ptr_irq timeout failed");
+#endif
+
 		SDE_EVT32(DRMID(phys_enc->parent), SDE_EVTLOG_FATAL);
 		mutex_lock(phys_enc->vblank_ctl_lock);
 		sde_encoder_helper_unregister_irq(phys_enc, INTR_IDX_RDPTR);
@@ -1202,10 +1209,7 @@ static bool sde_encoder_phys_cmd_is_autorefresh_enabled(
 		ret = hw_pp->ops.get_autorefresh(hw_pp, &cfg);
 	}
 
-	if (ret)
-		return false;
-
-	return cfg.enable;
+	return ret ? false : cfg.enable;
 }
 
 static void sde_encoder_phys_cmd_connect_te(
@@ -1324,7 +1328,7 @@ static void sde_encoder_phys_cmd_disable(struct sde_encoder_phys *phys_enc)
 			sde_encoder_helper_phys_disable(phys_enc, NULL);
 	}
 
-	phys_enc->enable_state = SDE_ENC_DISABLED;
+	memset(&cmd_enc->autorefresh.cfg, 0, sizeof(struct sde_hw_autorefresh));
 }
 
 static void sde_encoder_phys_cmd_destroy(struct sde_encoder_phys *phys_enc)

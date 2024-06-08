@@ -2062,6 +2062,7 @@ static void ffs_data_reset(struct ffs_data *ffs)
 
 	ffs_data_clear(ffs);
 
+	ffs->raw_descs_data = NULL;
 	ffs->raw_descs = NULL;
 
 	ffs->raw_descs_length = 0;

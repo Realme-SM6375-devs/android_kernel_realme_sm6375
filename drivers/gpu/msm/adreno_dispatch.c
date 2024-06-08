@@ -968,7 +968,7 @@ static inline void _decrement_submit_now(struct kgsl_device *device)
  *
  * Lock the dispatcher and call _adreno_dispatcher_issueibcmds
  */
-static void adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
+__attribute__((unused)) static void adreno_dispatcher_issuecmds(struct adreno_device *adreno_dev)
 {
 	struct adreno_dispatcher *dispatcher = &adreno_dev->dispatcher;
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
@@ -1480,8 +1480,9 @@ int adreno_dispatcher_queue_cmds(struct kgsl_device_private *dev_priv,
 	 * queue will try to schedule new commands anyway.
 	 */
 
-	if (dispatch_q->inflight < _context_drawobj_burst)
-		adreno_dispatcher_issuecmds(adreno_dev);
+	if (dispatch_q->inflight < _context_drawobj_burst) {
+		adreno_dispatcher_schedule(KGSL_DEVICE(adreno_dev));
+	}
 done:
 	if (test_and_clear_bit(ADRENO_CONTEXT_FAULT, &context->priv))
 		return -EPROTO;

@@ -46,14 +46,14 @@ ADD_FUNC_BODY(oplus_is_pd_svooc)
 
 #if defined(CONFIG_OPLUS_SM8350_CHARGER)
 DEF_SYMBOLE(void, oplus_adsp_crash_recover_work, void)
-ADD_FUNC_BODY(oplus_is_pd_svooc)
+ADD_FUNC_BODY(oplus_adsp_crash_recover_work)
 #endif
 
 DEF_SYMBOLE(int, qti_battery_charger_get_prop, const char *name, enum battery_charger_prop prop_id, int *val)
 ADD_FUNC_BODY(qti_battery_charger_get_prop, name, prop_id, val)
 #endif /* USE_ADSP */
 
-#if IS_ENABLED(CONFIG_OPLUS_CHARGER_MTK6895S)
+#if IS_ENABLED(CONFIG_OPLUS_CHARGER_MTK) && IS_ENABLED(CONFIG_OPLUS_CHG_V2)
 
 #include "oplus_gauge.h"
 
@@ -120,7 +120,10 @@ ADD_FUNC_BODY(oplus_tchg_01c_precision)
 DEF_SYMBOLE(int, oplus_force_get_subboard_temp, void)
 ADD_FUNC_BODY(oplus_force_get_subboard_temp)
 
-#endif /* CONFIG_OPLUS_CHARGER_MTK6895S */
+DEF_SYMBOLE(bool, oplus_get_hmac, void)
+ADD_FUNC_BODY(oplus_get_hmac)
+
+#endif /* CONFIG_OPLUS_CHARGER_MTK && CONFIG_OPLUS_CHG_V2 */
 
 static int __init oplus_chg_symbol_init(void)
 {

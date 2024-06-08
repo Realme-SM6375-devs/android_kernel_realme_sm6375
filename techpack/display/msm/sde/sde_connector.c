@@ -25,6 +25,7 @@
 #include "oplus_display_private_api.h"
 #include "oplus_dc_diming.h"
 #endif
+
 #define BL_NODE_NAME_SIZE 32
 #define HDR10_PLUS_VSIF_TYPE_CODE      0x81
 #define MAX_BRIGHTNESS_LEVEL 255
@@ -165,7 +166,7 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 #else
 	if (oplus_debug_max_brightness) {
 		bl_lvl = mult_frac(brightness, oplus_debug_max_brightness,
-			brightness_max_level);
+			dsi_display->panel->bl_config.brightness_max_level);
 	}else {
 		if (dsi_display->panel->oplus_priv.bl_remap && dsi_display->panel->oplus_priv.bl_remap_count) {
 			int i = 0;
@@ -189,9 +190,9 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 		} else if (brightness > dsi_display->panel->bl_config.brightness_normal_max_level) {
 			bl_lvl = interpolate(brightness,
 					dsi_display->panel->bl_config.brightness_normal_max_level,
-					brightness_max_level,
+					dsi_display->panel->bl_config.brightness_max_level,
 					dsi_display->panel->bl_config.bl_normal_max_level,
-					bl_max_level);
+					dsi_display->panel->bl_config.bl_max_level);
 		} else {
 			bl_lvl = mult_frac(brightness, dsi_display->panel->bl_config.bl_normal_max_level,
 					dsi_display->panel->bl_config.brightness_normal_max_level);
@@ -857,20 +858,22 @@ static int _sde_connector_update_bl_scale(struct sde_connector *c_conn)
 				((dsi_display) ? dsi_display->panel : NULL));
 			return -EINVAL;
 		}
-#ifdef OPLUS_BUG_STABILITY
-		bd = c_conn->bl_device;
-		if (!bd) {
-			SDE_ERROR("Invalid params backlight_device null\n");
-			return -EINVAL;
-		}
 
-		mutex_lock(&bd->update_lock);
+#ifdef OPLUS_BUG_STABILITY
+	bd = c_conn->bl_device;
+	if (!bd) {
+		SDE_ERROR("Invalid params backlight_device null\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&bd->update_lock);
 #endif /* OPLUS_BUG_STABILITY */
+
 		dsi_bl_config = &dsi_display->panel->bl_config;
 		if (!c_conn->allow_bl_update) {
 			c_conn->unset_bl_level = dsi_bl_config->bl_level;
 #ifdef OPLUS_BUG_STABILITY
-			mutex_unlock(&bd->update_lock);
+		mutex_unlock(&bd->update_lock);
 #endif /* OPLUS_BUG_STABILITY */
 			return 0;
 		}

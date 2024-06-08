@@ -830,11 +830,11 @@ void kgsl_device_snapshot(struct kgsl_device *device,
 			     "snapshot: no snapshot memory available\n");
 		return;
 	}
-
+/*
 	if (WARN(!kgsl_state_is_awake(device),
 		"snapshot: device is powered off\n"))
 		return;
-
+*/
 	/* increment the hang count for good book keeping */
 	device->snapshot_faultcount++;
 
@@ -1046,6 +1046,7 @@ static ssize_t snapshot_hashid_show(struct kgsl_device *device, char *buf)
 	return strlcpy(buf, device->snapshot->snapshot_hashid, PAGE_SIZE);
 }
 #endif
+
 /* Dump the sysfs binary data to the user */
 static ssize_t snapshot_show(struct file *filep, struct kobject *kobj,
 	struct bin_attribute *attr, char *buf, loff_t off,
@@ -1381,6 +1382,7 @@ void kgsl_device_snapshot_probe(struct kgsl_device *device, u32 size)
 	#if IS_ENABLED(CONFIG_DRM_MSM)
 	device->snapshot_control = 0;
 	#endif
+
 	device->snapshot_atomic = false;
 	device->panic_nb.notifier_call = kgsl_panic_notifier_callback;
 	device->panic_nb.priority = 1;

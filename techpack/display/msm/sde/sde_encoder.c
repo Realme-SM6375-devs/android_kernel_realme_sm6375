@@ -1352,9 +1352,12 @@ static int _sde_encoder_update_rsc_client(
 	 * secondary command mode panel.
 	 * Clone mode encoder can request CLK STATE only.
 	 */
-	if (sde_enc->cur_master)
+	if (sde_enc->cur_master) {
 		qsync_mode = sde_connector_get_qsync_mode(
 				sde_enc->cur_master->connector);
+		sde_enc->autorefresh_solver_disable =
+			_sde_encoder_is_autorefresh_enabled(sde_enc) ? true : false;
+	}
 
 	/* left primary encoder keep vote */
 	if (sde_encoder_in_clone_mode(drm_enc)) {
@@ -1363,7 +1366,8 @@ static int _sde_encoder_update_rsc_client(
 	}
 
 	if ((disp_info->display_type != SDE_CONNECTOR_PRIMARY) ||
-			(disp_info->display_type && qsync_mode))
+			(disp_info->display_type && qsync_mode) ||
+			sde_enc->autorefresh_solver_disable)
 		rsc_state = enable ? SDE_RSC_CLK_STATE : SDE_RSC_IDLE_STATE;
 	else if (sde_encoder_check_curr_mode(drm_enc, MSM_DISPLAY_CMD_MODE))
 		rsc_state = enable ? SDE_RSC_CMD_STATE : SDE_RSC_IDLE_STATE;
@@ -1946,9 +1950,17 @@ static int _sde_encoder_rc_idle(struct drm_encoder *drm_enc,
 	struct msm_drm_private *priv;
 	struct sde_kms *sde_kms;
 	struct drm_crtc *crtc = drm_enc->crtc;
-	struct sde_crtc *sde_crtc = to_sde_crtc(crtc);
+	struct sde_crtc *sde_crtc;
 
 	priv = drm_enc->dev->dev_private;
+
+	if (!crtc || !sde_enc->cur_master || !priv->kms) {
+		SDE_ERROR("invalid args crtc:%d master:%d\n", !crtc, !sde_enc->cur_master);
+		return -EINVAL;
+	}
+
+	sde_crtc = to_sde_crtc(crtc);
+
 	sde_kms = to_sde_kms(priv->kms);
 
 	mutex_lock(&sde_enc->rc_lock);
@@ -1998,7 +2010,7 @@ static int _sde_encoder_rc_early_wakeup(struct drm_encoder *drm_enc,
 {
 	bool autorefresh_enabled = false;
 	struct msm_drm_thread *disp_thread;
-	int ret = 0;
+	int ret = 0, idle_pc_duration = 0;
 
 	if (!sde_enc->crtc ||
 		sde_enc->crtc->index >= ARRAY_SIZE(priv->disp_thread)) {
@@ -2026,11 +2038,14 @@ static int _sde_encoder_rc_early_wakeup(struct drm_encoder *drm_enc,
 			goto end;
 		}
 
-		if (!sde_crtc_frame_pending(sde_enc->crtc))
+		if (!sde_crtc_frame_pending(sde_enc->crtc)) {
 			kthread_mod_delayed_work(&disp_thread->worker,
 					&sde_enc->delayed_off_work,
 					msecs_to_jiffies(
 					IDLE_POWERCOLLAPSE_DURATION));
+			idle_pc_duration = IDLE_POWERCOLLAPSE_DURATION;
+		}
+
 	} else if (sde_enc->rc_state == SDE_ENC_RC_STATE_IDLE) {
 		/* enable all the clks and resources */
 		ret = _sde_encoder_resource_control_helper(drm_enc,
@@ -2058,12 +2073,13 @@ static int _sde_encoder_rc_early_wakeup(struct drm_encoder *drm_enc,
 				&sde_enc->delayed_off_work,
 				msecs_to_jiffies(
 				IDLE_POWERCOLLAPSE_IN_EARLY_WAKEUP));
+		idle_pc_duration = IDLE_POWERCOLLAPSE_IN_EARLY_WAKEUP;
 
 		sde_enc->rc_state = SDE_ENC_RC_STATE_ON;
 	}
 
-	SDE_EVT32(DRMID(drm_enc), sw_event, sde_enc->rc_state,
-			SDE_ENC_RC_STATE_ON, SDE_EVTLOG_FUNC_CASE8);
+	SDE_EVT32(DRMID(drm_enc), sw_event, sde_enc->rc_state, SDE_ENC_RC_STATE_ON,
+			idle_pc_duration, SDE_EVTLOG_FUNC_CASE8);
 
 end:
 	mutex_unlock(&sde_enc->rc_lock);
@@ -3949,8 +3965,13 @@ static void sde_encoder_input_event_work_handler(struct kthread_work *work)
 	struct sde_encoder_virt *sde_enc = container_of(work,
 				struct sde_encoder_virt, input_event_work);
 
-	if (!sde_enc) {
-		SDE_ERROR("invalid sde encoder\n");
+	if (!sde_enc || !sde_enc->input_handler) {
+		SDE_ERROR("invalid args sde encoder\n");
+		return;
+	}
+
+	if (!sde_enc->input_handler->private) {
+		SDE_DEBUG_ENC(sde_enc, "input handler is unregistered\n");
 		return;
 	}
 
@@ -4234,15 +4255,16 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 
 			if (sde_enc->cur_master &&
 					sde_connector_is_qsync_updated(
-					sde_enc->cur_master->connector)) {
+					sde_enc->cur_master->connector))
 				_helper_flush_qsync(phys);
 
-				if (is_cmd_mode)
-					_sde_encoder_update_rsc_client(drm_enc,
-							true);
-			}
 		}
 	}
+
+	if (is_cmd_mode && sde_enc->cur_master &&
+			 (sde_connector_is_qsync_updated(sde_enc->cur_master->connector) ||
+			 _sde_encoder_is_autorefresh_enabled(sde_enc)))
+		_sde_encoder_update_rsc_client(drm_enc, true);
 
 	rc = sde_encoder_resource_control(drm_enc, SDE_ENC_RC_EVENT_KICKOFF);
 	if (rc) {
@@ -4372,7 +4394,12 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool is_error,
 			phys->ops.handle_post_kickoff(phys);
 	}
 
+	if (sde_enc->autorefresh_solver_disable &&
+			!_sde_encoder_is_autorefresh_enabled(sde_enc))
+		_sde_encoder_update_rsc_client(drm_enc, true);
+
 	SDE_ATRACE_END("encoder_kickoff");
+
 #ifdef OPLUS_BUG_STABILITY
 	sde_connector_update_backlight(sde_enc->cur_master->connector, true);
 #endif /* OPLUS_BUG_STABILITY */

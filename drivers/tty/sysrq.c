@@ -136,10 +136,20 @@ static struct sysrq_key_op sysrq_unraw_op = {
 
 static void sysrq_handle_crash(int key)
 {
+
+#ifdef OPLUS_BUG_STABILITY
+        struct task_struct *tsk = NULL;
+#endif /*OPLUS_BUG_STABILITY*/
+
 	/* release the RCU read lock before crashing */
 	rcu_read_unlock();
 
 	trace_android_vh_sysrq_crash(current);
+#ifdef OPLUS_BUG_STABILITY
+    /* modify for show the murderer*/
+        tsk = current->group_leader;
+        pr_info("BUG:%s:%d call sysrq-trigger, GroupLeader is %s:%d\n", current->comm, task_pid_nr(current), tsk->comm, task_pid_nr(tsk));
+#endif /*OPLUS_BUG_STABILITY*/
 
 	panic("sysrq triggered crash\n");
 }

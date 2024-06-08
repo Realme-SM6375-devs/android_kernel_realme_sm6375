@@ -31,8 +31,15 @@
 #include <linux/compiler.h>
 #include <linux/moduleparam.h>
 #include <linux/wakeup_reason.h>
-
+#if IS_ENABLED(CONFIG_QGKI)
+#include <linux/syscalls.h>
+#endif
 #include "power.h"
+
+#ifdef CONFIG_OPLUS_POWER_UTIL
+extern void oplus_get_rpm_stats(void);
+extern void oplus_get_clk_stats(void);
+#endif
 
 const char * const pm_labels[] = {
 	[PM_SUSPEND_TO_IDLE] = "freeze",
@@ -549,6 +556,60 @@ static void suspend_finish(void)
 	pm_restore_console();
 }
 
+#if IS_ENABLED(CONFIG_QGKI)
+/**
+ * Sync the filesystem in seperate workqueue.
+ * Then check it finishing or not periodically and
+ * abort if any wakeup source comes in. That can reduce
+ * the wakeup latency
+ */
+static bool sys_sync_completed = false;
+static void sys_sync_work_func(struct work_struct *work);
+static DECLARE_WORK(sys_sync_work, sys_sync_work_func);
+static DECLARE_WAIT_QUEUE_HEAD(sys_sync_wait);
+static void sys_sync_work_func(struct work_struct *work)
+{
+	printk(KERN_INFO "PM: Syncing filesystems ... \n");
+	ksys_sync();
+	sys_sync_completed = true;
+	wake_up(&sys_sync_wait);
+}
+
+static int sys_sync_queue(void)
+{
+	int work_status = work_busy(&sys_sync_work);
+
+	/*Check if the previous work still running.*/
+	if (!(work_status & WORK_BUSY_PENDING)) {
+		if (work_status & WORK_BUSY_RUNNING) {
+			while (wait_event_timeout(sys_sync_wait, sys_sync_completed,
+						msecs_to_jiffies(100)) == 0) {
+				if (pm_wakeup_pending()) {
+					pr_info("PM: Pre-Syncing abort\n");
+					goto abort;
+				}
+			}
+			pr_info("PM: Pre-Syncing done\n");
+		}
+		sys_sync_completed = false;
+		schedule_work(&sys_sync_work);
+	}
+
+	while (wait_event_timeout(sys_sync_wait, sys_sync_completed,
+					msecs_to_jiffies(100)) == 0) {
+		if (pm_wakeup_pending()) {
+			pr_info("PM: Syncing abort\n");
+			goto abort;
+		}
+	}
+
+	pr_info("PM: Syncing done\n");
+	return 0;
+abort:
+	return -EAGAIN;
+}
+#endif
+
 /**
  * enter_state - Do common work needed to enter system sleep state.
  * @state: System sleep state to enter.
@@ -559,7 +620,7 @@ static void suspend_finish(void)
  */
 static int enter_state(suspend_state_t state)
 {
-	int error;
+	int error = 0;
 
 	trace_suspend_resume(TPS("suspend_enter"), state, true);
 	if (state == PM_SUSPEND_TO_IDLE) {
@@ -578,11 +639,16 @@ static int enter_state(suspend_state_t state)
 	if (state == PM_SUSPEND_TO_IDLE)
 		s2idle_begin();
 
+#if IS_ENABLED(CONFIG_QGKI)
+	if (sys_sync_queue())
+		goto Unlock;
+#else
 	if (!IS_ENABLED(CONFIG_SUSPEND_SKIP_SYNC)) {
 		trace_suspend_resume(TPS("sync_filesystems"), 0, true);
 		ksys_sync_helper();
 		trace_suspend_resume(TPS("sync_filesystems"), 0, false);
 	}
+#endif /*CONFIG_QGKI*/
 
 	pm_pr_dbg("Preparing system for sleep (%s)\n", mem_sleep_labels[state]);
 	pm_suspend_clear_flags();
@@ -637,6 +703,7 @@ int pm_suspend(suspend_state_t state)
 	#ifdef CONFIG_OPLUS_POWER_UTIL
 	oplus_get_rpm_stats();
 	#endif
+
 	pr_info("suspend exit\n");
 	return error;
 }

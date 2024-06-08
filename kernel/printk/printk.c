@@ -55,6 +55,10 @@
 #include <trace/events/initcall.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
+#ifdef OPLUS_BUG_STABILITY
+#include <linux/rtc.h>
+#include <linux/time.h>
+#endif
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/debug.h>
 
@@ -1334,12 +1338,17 @@ static inline void boot_delay_msec(int level)
 
 static bool printk_time = IS_ENABLED(CONFIG_PRINTK_TIME);
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
+#ifdef OPLUS_BUG_STABILITY
+static bool print_wall_time = 1;
+module_param_named(print_wall_time, print_wall_time, bool, 0644);
+#endif
 
 static size_t print_syslog(unsigned int level, char *buf)
 {
 	return sprintf(buf, "<%u>", level);
 }
 
+#ifndef OPLUS_BUG_STABILITY
 static size_t print_time(u64 ts, char *buf)
 {
 	unsigned long rem_nsec = do_div(ts, 1000000000);
@@ -1347,6 +1356,7 @@ static size_t print_time(u64 ts, char *buf)
 	return sprintf(buf, "[%5lu.%06lu]",
 		       (unsigned long)ts, rem_nsec / 1000);
 }
+#endif
 
 #ifdef CONFIG_PRINTK_CALLER
 static size_t print_caller(u32 id, char *buf)
@@ -1369,8 +1379,10 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog,
 	if (syslog)
 		len = print_syslog((msg->facility << 3) | msg->level, buf);
 
+#ifndef OPLUS_BUG_STABILITY
 	if (time)
 		len += print_time(msg->ts_nsec, buf + len);
+#endif
 
 	len += print_caller(msg->caller_id, buf + len);
 
@@ -1985,6 +1997,14 @@ int vprintk_store(int facility, int level,
 	char *text = textbuf;
 	size_t text_len;
 	enum log_flags lflags = 0;
+#ifdef OPLUS_BUG_STABILITY
+	static char texttmp[LOG_LINE_MAX];
+	static bool last_new_line = true;
+	u64 ts_sec = local_clock();
+	unsigned long rem_nsec;
+
+	rem_nsec = do_div(ts_sec, 1000000000);
+#endif
 
 	/*
 	 * The printf needs to come first; we need the syslog
@@ -2016,6 +2036,46 @@ int vprintk_store(int facility, int level,
 			text += 2;
 		}
 	}
+
+#ifdef OPLUS_BUG_STABILITY
+	if (last_new_line) {
+		if (print_wall_time && ts_sec >= 20 && !console_suspended) {
+			struct timespec64 tspec;
+			struct rtc_time tm;
+
+			ktime_get_real_ts64_without_warn_on(&tspec);
+
+			if (sys_tz.tz_minuteswest < 0
+				|| (tspec.tv_sec-sys_tz.tz_minuteswest*60) >= 0)
+				tspec.tv_sec -= sys_tz.tz_minuteswest * 60;
+			rtc_time_to_tm(tspec.tv_sec, &tm);
+
+			text_len = scnprintf(texttmp, sizeof(texttmp),
+				"[%02d%02d%02d_%02d:%02d:%02d.%06ld]@%d %s",
+				tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+				tm.tm_hour, tm.tm_min, tm.tm_sec,
+				tspec.tv_nsec / 1000,
+				raw_smp_processor_id(), text);
+		} else {
+			text_len = scnprintf(texttmp, sizeof(texttmp),
+				"[%5lu.%06lu]@%d %s", (unsigned long)ts_sec,
+				rem_nsec / 1000, raw_smp_processor_id(), text);
+		}
+
+		text = texttmp;
+
+		/* mark and strip a trailing newline */
+		if (text_len && text[text_len-1] == '\n') {
+			text_len--;
+			lflags |= LOG_NEWLINE;
+		}
+	}
+
+	if (lflags & LOG_NEWLINE)
+		last_new_line = true;
+	else
+		last_new_line = false;
+#endif
 
 	if (level == LOGLEVEL_DEFAULT)
 		level = default_message_loglevel;

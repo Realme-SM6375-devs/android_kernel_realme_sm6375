@@ -13,7 +13,6 @@
 #define OPLUS_FEATURE_CAMERA_COMMON
 #endif
 
-
 void cam_flash_put_source_node_data(struct cam_flash_ctrl *fctrl)
 {
 	uint32_t count = 0, i = 0;
@@ -351,7 +350,6 @@ release_soc_res:
 	cam_soc_util_release_platform_resource(soc_info);
 	return rc;
 }
-
 int cam_i2c_flash_get_dt_data(struct cam_flash_ctrl *fctrl,
 	struct cam_hw_soc_info *soc_info)
 {

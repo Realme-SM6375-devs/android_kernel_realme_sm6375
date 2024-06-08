@@ -51,6 +51,11 @@
 #include "aw87xxx_acf_bin.h"
 #include "aw87xxx_bin_parse.h"
 #include "aw87xxx_dsp.h"
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include <soc/oplus/system/oplus_mm_kevent_fb.h>
+#define OPLUS_AUDIO_EVENTID_SMARTPA_ERR    10041
+#define SMARTPA_ERR_FB_VERSION             "1.0.0"
+#endif
 
 /*****************************************************************
 * aw87xxx marco
@@ -1609,6 +1614,11 @@ static int aw87xxx_i2c_probe(struct i2c_client *client,
 			return ret;
 		}
 	}
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	AW_DEV_LOGI(aw87xxx->dev, "event_id=%u, version:%s", \
+			OPLUS_AUDIO_EVENTID_SMARTPA_ERR, SMARTPA_ERR_FB_VERSION);
+#endif
 
 	return 0;
 

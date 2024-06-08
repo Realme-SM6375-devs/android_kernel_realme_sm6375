@@ -38,8 +38,13 @@ config OPLUS_FEATURE_DETAILHEAD
 
 source "drivers/soc/oplus/system/feedback/Kconfig"
 source "drivers/soc/oplus/system/oplus_project/Kconfig"
+source "drivers/soc/oplus/system/oplus_phoenix/Kconfig"
+source "drivers/soc/oplus/system/oplus_pmic_monitor/Kconfig"
 source "drivers/soc/oplus/system/project_info/Kconfig"
 source "drivers/soc/oplus/system/cmdline_parser/Kconfig"
+#ifdef OPLUS_FEATURE_QCOM_PMICWD
+source "drivers/soc/oplus/system/qcom_pmicwd/Kconfig"
+#endif /* OPLUS_FEATURE_QCOM_PMICWD */
 
 #ifdef OPLUS_FEATURE_MM_FEEDBACK
 source "drivers/soc/oplus/system/oplus_mm_fb/Kconfig"
@@ -48,3 +53,9 @@ source "drivers/soc/oplus/system/oplus_mm_fb/Kconfig"
 #ifdef OPLUS_FEATURE_ACM
 source "drivers/soc/oplus/system/acm/Kconfig"
 #endif /* OPLUS_FEATURE_ACM */
+#ifdef OPLUS_FEATURE_THEIA
+source "drivers/soc/oplus/system/theia/Kconfig"
+#endif /* OPLUS_FEATURE_THEIA */
+#ifdef OPLUS_FEATURE_MISC
+source "drivers/soc/oplus/system/misc/Kconfig"
+#endif /* OPLUS_FEATURE_MISC */

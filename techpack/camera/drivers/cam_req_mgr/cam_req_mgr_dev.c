@@ -29,9 +29,8 @@
 #include "cam_common_util.h"
 #include "cam_compat.h"
 #include "cam_cpas_hw.h"
-#include "cam_trace.h"
 
-#define CAM_REQ_MGR_EVENT_MAX 30
+#define CAM_REQ_MGR_EVENT_MAX 90
 
 static struct cam_req_mgr_device g_dev;
 struct kmem_cache *g_cam_req_mgr_timer_cachep;
@@ -328,8 +327,6 @@ static long cam_private_ioctl(struct file *file, void *fh,
 	switch (k_ioctl->op_code) {
 	case CAM_REQ_MGR_CREATE_SESSION: {
 		struct cam_req_mgr_session_info ses_info;
-
-		camera_provider_pid = task_tgid_nr(current);
 
 		if (k_ioctl->size != sizeof(ses_info))
 			return -EINVAL;

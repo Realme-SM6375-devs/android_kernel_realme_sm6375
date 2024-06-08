@@ -450,7 +450,7 @@ static void acc_complete_set_string(struct usb_ep *ep, struct usb_request *req)
 		return;
 #endif
 	}
-    
+
 #ifdef CONFIG_OPLUS_FEATURE_CHG_MISC
 	if (!length) {
 		pr_debug("zero length for accessory string index %d\n",

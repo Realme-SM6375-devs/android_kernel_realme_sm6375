@@ -9,7 +9,7 @@
 #include "cam_sensor_dev.h"
 
 struct cam_sensor_i2c_reg_setting_array {
-	struct cam_sensor_i2c_reg_array reg_setting[4600];
+	struct cam_sensor_i2c_reg_array reg_setting[6400];
 	unsigned short size;
 	enum camera_sensor_i2c_type addr_type;
 	enum camera_sensor_i2c_type data_type;
@@ -47,5 +47,5 @@ long oplus_cam_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg, unsigned int *is_ftm_current_test);
 
 int cam_sensor_stop(struct cam_sensor_ctrl_t *s_ctrl);
-int cam_sensor_start(struct cam_sensor_ctrl_t *s_ctrl);
+int cam_sensor_start(struct cam_sensor_ctrl_t *s_ctrl, unsigned int camera_sensor_cmd);
 #endif /* _OPLUS_CAM_SENSOR_DEV_H_ */

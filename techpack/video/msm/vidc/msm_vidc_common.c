@@ -3527,7 +3527,6 @@ static int msm_vidc_load_resources(int flipped_state,
 #ifdef OPLUS_ARCH_EXTENDS
 	max_video_load += NUM_MBS_PER_SEC(1920, 1088,40);
 #endif
-
 	if (video_load > max_video_load) {
 		s_vpr_e(inst->sid,
 			"H/W is overloaded. needed: %d max: %d\n",
@@ -5982,7 +5981,6 @@ static int msm_vidc_check_mbps_supported(struct msm_vidc_inst *inst)
 #ifdef OPLUS_ARCH_EXTENDS
 		max_video_load += NUM_MBS_PER_SEC(1920, 1088,40);
 #endif
-
 		if (video_load > max_video_load) {
 			s_vpr_e(inst->sid,
 				"H/W is overloaded. needed: %d max: %d\n",
@@ -6863,7 +6861,7 @@ int msm_comm_qbuf_cache_operations(struct msm_vidc_inst *inst,
 			rc = msm_smem_cache_operations(mbuf->smem[i].dma_buf,
 					cache_op, offset, size, inst->sid);
 			if (rc)
-				print_vidc_buffer(VIDC_ERR,
+				print_vidc_buffer(VIDC_HIGH,
 					"qbuf cache ops failed", inst, mbuf);
 		}
 	}
@@ -7841,6 +7839,7 @@ u32 msm_comm_calc_framerate(struct msm_vidc_inst *inst,
 		return framerate;
 	}
 	interval = (u32)(timestamp_us - prev_ts);
+
 #ifndef OPLUS_ARCH_EXTENDS
 	framerate = (1000000 + interval / 2) / interval;
 	if (framerate > capability->cap[CAP_FRAMERATE].max)
@@ -7885,10 +7884,11 @@ u32 msm_comm_get_max_framerate(struct msm_vidc_inst *inst)
 	}
 #ifndef OPLUS_ARCH_EXTENDS
 	avg_framerate = count ? (div_u64(avg_framerate, count)) : (1 << 16);
+
 	s_vpr_l(inst->sid, "%s: fps %u, list size %u\n", __func__, avg_framerate, count);
 #else /* OPLUS_ARCH_EXTENDS */
 	avg_framerate = count > 12 ? (avg_framerate / count) : (15 << 16);
-	s_vpr_h(inst->sid, "%s: session type is %d,average fps %lld, list size %d\n",
+	s_vpr_h(inst->sid, "%s: session type is %d,average fps %lld, list size %u\n",
 	    __func__, inst->session_type, avg_framerate >> 16, count);
 #endif /* OPLUS_ARCH_EXTENDS */
 	mutex_unlock(&inst->timestamps.lock);

@@ -1230,7 +1230,6 @@ config VIRTIO_REGULATOR
 	  regulator for pass through peripheral devices via regulator backend in
 	  host.
 
-
 config REGULATOR_OPLUS_FAN53870
 	tristate "FAN53870 PMIC I2C Driver"
 	default y

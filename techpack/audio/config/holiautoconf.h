@@ -51,4 +51,5 @@
 #define CONFIG_SND_SOC_TFA98XX 1
 /* Add for tfa vi feedback */
 #define OPLUS_FEATURE_TFA98XX_VI_FEEDBACK 1
+#define CONFIG_SND_SOC_OPLUS_PA_MANAGER 1
 #endif /* OPLUS_ARCH_EXTENDS */

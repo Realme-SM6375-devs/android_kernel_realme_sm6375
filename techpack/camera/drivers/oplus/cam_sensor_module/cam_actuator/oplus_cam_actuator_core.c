@@ -172,7 +172,7 @@ int32_t cam_actuator_update_pid_to_v11(struct cam_actuator_ctrl_t *a_ctrl)
 		a_ctrl->io_master_info.cci_client->sid = 0xE4 >> 1;
 		if(IDSEL != 0xEE && IDSEL != 0xEF)
 		{
-			return 0;//¦Ì¡À?¡ã?¨ª¡ä?¡¤?R4?¨°R9¡ã?¡À?¡ê?2??¨¹?¡À?¨®?¨¹D??¨¢R11¡ã?¡À?
+			return 0;//Î¼Â±?Â°?Ã­â€²?Â·?R4?Ã²R9Â°?Â±?ï¿¡?2??Ã¼?Â±?Ã³?Ã¼D??Ã¡R11Â°?Â±?
 		}
 
 		// Write all data to EEPROM

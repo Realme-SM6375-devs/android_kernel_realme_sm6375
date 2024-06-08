@@ -1,4 +1,4 @@
-#define HM6_A303_INIT_SETTINGS_SIZE 7142
+#define HM6_A303_INIT_SETTINGS_SIZE 7590
 #define HM6_A303_INIT_SETTINGS_SEGMENT_NUM 7
 
 struct hm6_a303_reg_settings {
@@ -14,7 +14,7 @@ struct hm6_a303_reg_settings {
 	unsigned short total_size;
 };
 
-/*v1.12d_20221009*/
+/*v1.12d_20220217*/
 struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 	.reg_setting =
 	{
@@ -116,12 +116,12 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0x33, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x03, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x42, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x2B, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x2F, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x03, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x13, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x11, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x6B, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x0B, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
@@ -915,6 +915,10 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x72, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x74, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
@@ -1175,17 +1179,13 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x74, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x72, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x78, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x7C, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x80, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -2849,147 +2849,147 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xA0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xA2, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xA4, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xA6, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xA8, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xAA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xAC, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xAE, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB2, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB4, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB6, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB8, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xBA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xBC, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xBE, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC2, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC4, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC6, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xC8, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xCA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xCC, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xCE, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xD2, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xD4, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xD6, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xD8, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xDA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xDC, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xDE, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE2, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE4, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE6, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0x8308, .reg_data = 0x66, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xE8, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -3134,6 +3134,222 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0x2E, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF6, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF8, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x07, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFA, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x08, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFC, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFE, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0B, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x30, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x06, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x08, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x30, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x30, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x12, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x14, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x16, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x18, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x1A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x1C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x1E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x22, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x24, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x26, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x28, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x2A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x2C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x2E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xFF, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xD0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x30, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x32, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x34, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x36, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x38, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x3A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x3C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x3E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x42, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x44, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xF0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x46, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x48, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0xE0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x4A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x4C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x4E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x52, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x54, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x56, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x58, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x5A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x5C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x5E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x60, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0xB0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -3606,6 +3822,14 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0x8308, .reg_data = 0xCA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x14, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x03, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x0D, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0x8308, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0x8308, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -4485,6 +4709,10 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x8A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x94, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x8C, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
@@ -4729,21 +4957,17 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x74, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x78, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
-		{.reg_addr = 0xB704, .reg_data = 0x7C, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x80, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0xC0, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x8A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x8C, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
@@ -6684,6 +6908,222 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0xB704, .reg_data = 0x2E, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x08, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0xF6, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0xF8, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0xFA, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0xFC, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x08, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x96, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0xFE, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x0C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x04, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x06, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x08, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x0A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x0C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x0E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x10, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x12, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x14, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x16, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x18, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x1A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x1C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x1E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x20, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x22, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x24, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x26, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x28, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x2A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x2C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x2E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x30, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x32, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x34, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x36, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x38, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x3A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x3C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x3E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x40, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x42, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x44, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x46, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x48, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x4A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x4C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x4E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x50, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x52, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x54, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x56, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x58, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x5A, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x5C, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x5E, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x60, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x97, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0xB0, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -7156,6 +7596,14 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 		{.reg_addr = 0xB704, .reg_data = 0xCA, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x14, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x03, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x0D, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x02, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
+		{.reg_addr = 0xB704, .reg_data = 0x01, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
 		{.reg_addr = 0xB704, .reg_data = 0x00, .delay = 0x00, .data_mask = 0x00}, \
@@ -7166,7 +7614,7 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 	.seq_addr_type = CAMERA_SENSOR_I2C_TYPE_WORD,
 	.seq_data_type = CAMERA_SENSOR_I2C_TYPE_BYTE,
 	.segment_index = {
-0, 9, 29, 35, 41, 42, 3592
+0, 9, 29, 35, 41, 42, 3816
 	},
 	.delay = {
 0, 0, 0, 0, 0, 0, 0
@@ -7175,7 +7623,7 @@ struct hm6_a303_reg_settings s5khm6_a303_seq_settings =  {
 0, 2, 0, 2, 0, 2, 2
 	},
 	.segment_size = {
-9, 20, 6, 6, 1, 3550, 3550
+9, 20, 6, 6, 1, 3774, 3774
 	},
 	.total_size = 7,
 };

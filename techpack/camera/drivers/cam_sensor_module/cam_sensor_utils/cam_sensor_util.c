@@ -2550,7 +2550,6 @@ int cam_sensor_util_power_down(struct cam_sensor_power_ctrl_t *ctrl,
 			wl2868c_ldo_disable(pd->seq_type - SENSOR_EXT_L1, 0);
 			break;
 #endif
-
 		default:
 			CAM_ERR(CAM_SENSOR, "error power seq type %d",
 				pd->seq_type);

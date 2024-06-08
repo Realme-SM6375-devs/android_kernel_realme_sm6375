@@ -614,6 +614,7 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 	char *comm = "unknown";
 	bool skip_fault = false;
 	struct kgsl_process_private *private;
+	struct kgsl_context *context= NULL;
 
 	static DEFINE_RATELIMIT_STATE(_rs,
 					DEFAULT_RATELIMIT_INTERVAL,
@@ -687,8 +688,6 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 		no_page_fault_log = kgsl_mmu_log_fault_addr(mmu, ptbase, addr);
 
 	if (!no_page_fault_log && __ratelimit(&_rs)) {
-		struct kgsl_context *context = kgsl_context_get(device,
-							contextidr);
 		#ifdef OPLUS_BUG_STABILITY
 		#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 		#ifdef NEED_FEEDBACK_TO_DISPLAY
@@ -706,6 +705,8 @@ static int kgsl_iommu_fault_handler(struct iommu_domain *domain,
 		#endif //NEED_FEEDBACK_TO_DISPLAY
 		#endif //CONFIG_OPLUS_FEATURE_MM_FEEDBACK
 		#endif /*OPLUS_BUG_STABILITY*/
+
+		context = kgsl_context_get(device, contextidr);
 
 		dev_crit(ctx->kgsldev->dev,
 			"GPU PAGE FAULT: addr = %lX pid= %d name=%s drawctxt=%d context pid = %d\n",

@@ -435,6 +435,7 @@ static void msm_restart_prepare(const char *cmd)
 		return;
 	}
 #endif /* OPLUS_BUG_STABILITY */
+
 	if (force_warm_reboot)
 		pr_info("Forcing a warm reset of the system\n");
 
@@ -500,6 +501,7 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "novib", 5)) {
 			reason = PON_RESTART_REASON_BOOT_NO_VIBRATION;
 		} else {
+			reason = PON_RESTART_REASON_NORMAL;
 			__raw_writel(0x77665501, restart_reason);
 		}
 #else

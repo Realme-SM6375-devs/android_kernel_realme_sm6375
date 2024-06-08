@@ -567,7 +567,7 @@ static int sn100_ese_pwr(struct nqx_dev *nqx_dev, unsigned long arg)
 			dev_dbg(&nqx_dev->client->dev, "NFC not enabled, disabling en_gpio\n");
 			gpio_set_value(nqx_dev->en_gpio, 0);
 			/* hardware dependent delay */
-			usleep_range(1000, 1100);
+			usleep_range(10000, 10100);
 		} else {
 			dev_dbg(&nqx_dev->client->dev, "keep en_gpio high as NFC is enabled\n");
 		}
@@ -724,9 +724,11 @@ static int nqx_ese_pwr(struct nqx_dev *nqx_dev, unsigned long arg)
 
 		if (!nqx_dev->nfc_ven_enabled) {
 			/* hardware dependent delay */
-			usleep_range(1000, 1100);
+			usleep_range(10000, 10100);
 			dev_dbg(&nqx_dev->client->dev, "disabling en_gpio\n");
-			gpio_set_value(nqx_dev->en_gpio, 0);
+			gpio_set_value(nqx_dev->en_gpio, 0);/* ULPM: Disable */
+			/* hardware dependent delay */
+			usleep_range(10000, 10000 + 100);
 		}
 	} else if (arg == 3) {
 		r = gpio_get_value(nqx_dev->ese_gpio);
@@ -1524,7 +1526,9 @@ err_nfcc_hw_check:
 done:
     gpio_set_value(firm_gpio, 0);
     /* make sure NFCC is not enabled */
-    gpio_set_value(enable_gpio, 0);
+        gpio_set_value(enable_gpio, 0);/* ULPM: Disable */
+        /* hardware dependent delay */
+        usleep_range(10000, 10000 + 100);
     kfree(nci_get_fw_rsp);
     kfree(nci_get_fw_cmd);
 #endif /* OPLUS_BUG_STABILITY */
@@ -1901,7 +1905,9 @@ static int nqx_probe(struct i2c_client *client,
 	if (r) {
 		#ifndef OPLUS_BUG_STABILITY
 		/* make sure NFCC is not enabled */
-		gpio_set_value(platform_data->en_gpio, 0);
+		gpio_set_value(platform_data->en_gpio, 0);/* ULPM: Disable */
+		/* hardware dependent delay */
+		usleep_range(10000, 10000 + 100);
 		/* We don't think there is hardware switch NFC OFF */
 		goto err_request_hw_check_failed;
 		#endif /* OPLUS_BUG_STABILITY */

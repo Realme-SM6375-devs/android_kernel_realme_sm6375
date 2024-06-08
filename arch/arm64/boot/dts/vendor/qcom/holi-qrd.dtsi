@@ -213,6 +213,7 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_vol_up_default>;
+
 		vol_up {
 			label = "volume_up";
 			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
@@ -425,7 +426,7 @@
 
 			gold-cdev {
 				trip = <&gold_trip>;
-				// throttle to 1536000KHz 
+				// throttle to 1536000KHz
 				cooling-device = <&CPU6 (THERMAL_MAX_LIMIT-5)
 							(THERMAL_MAX_LIMIT-5)>;
 			};

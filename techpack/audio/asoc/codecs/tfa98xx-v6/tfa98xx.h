@@ -69,6 +69,14 @@ enum tfa98xx_dsp_fw_state {
        TFA98XX_DSP_FW_OK,
 };
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+enum {
+	PA_TFA9874 = 0,
+	PA_TFA9873,
+	PA_MAX
+};
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
+
 struct tfa98xx_firmware {
 	void			*base;
 	struct tfa98xx_device	*dev;
@@ -100,6 +108,10 @@ struct tfa98xx {
 	#ifdef OPLUS_FEATURE_FADE_IN
 	struct delayed_work fadein_work;
 	#endif /* OPLUS_FEATURE_FADE_IN */
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	struct delayed_work check_work;
+	int pa_type;
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 	struct mutex dsp_lock;
 	int dsp_init;
 	int dsp_fw_state;
