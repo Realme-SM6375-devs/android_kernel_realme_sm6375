@@ -2281,6 +2281,7 @@ static ssize_t oplus_display_notify_fp_press(struct kobject *obj,
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
 	if (display->panel->oplus_priv.is_aod_ramless) {
 		struct drm_display_mode *set_mode = NULL;
+		int ret;
 
 		if (oplus_display_mode == 2)
 			goto error;
@@ -2307,7 +2308,9 @@ static ssize_t oplus_display_notify_fp_press(struct kobject *obj,
 
 		if (mode_changed) {
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 
 		wake_up(&oplus_aod_wait);
@@ -2546,6 +2549,7 @@ static ssize_t oplus_display_set_video(struct kobject *obj,
 	int vblank_get = -EINVAL;
 	int err = 0;
 	int i;
+	int ret;
 
 	if (!display || !display->panel) {
 		pr_err("failed to find dsi display\n");
@@ -2614,7 +2618,9 @@ static ssize_t oplus_display_set_video(struct kobject *obj,
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 		wake_up(&oplus_aod_wait);
 	}
@@ -2740,6 +2746,7 @@ int oplus_display_panel_set_video(void *buf) {
 	int vblank_get = -EINVAL;
 	int err = 0;
 	int i;
+	int ret;
 
 	if (!display || !display->panel) {
 		pr_err("failed to find dsi display\n");
@@ -2808,7 +2815,9 @@ int oplus_display_panel_set_video(void *buf) {
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 		wake_up(&oplus_aod_wait);
 	}

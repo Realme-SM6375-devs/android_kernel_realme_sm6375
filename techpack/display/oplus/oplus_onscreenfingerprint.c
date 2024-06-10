@@ -1007,6 +1007,7 @@ int oplus_display_panel_notify_fp_press(void *data)
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
 	if (display->panel->oplus_priv.is_aod_ramless) {
 		struct drm_display_mode *set_mode = NULL;
+		int ret;
 
 		if (oplus_display_mode == 2)
 			goto error;
@@ -1033,7 +1034,9 @@ int oplus_display_panel_notify_fp_press(void *data)
 
 		if (mode_changed) {
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 
 		/* wake_up(&oplus_aod_wait); */
