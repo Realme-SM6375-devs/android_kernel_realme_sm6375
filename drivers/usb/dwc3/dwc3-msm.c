@@ -4597,7 +4597,11 @@ static void dwc3_start_stop_host(struct dwc3_msm *mdwc, bool start)
 	dwc3_ext_event_notify(mdwc);
 	dbg_event(0xFF, "flush_work", 0);
 	flush_work(&mdwc->resume_work);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	flush_workqueue(mdwc->sm_usb_wq);
+#else
 	drain_workqueue(mdwc->sm_usb_wq);
+#endif
 	if (start)
 		dbg_log_string("host mode started");
 	else
@@ -4621,7 +4625,11 @@ static void dwc3_start_stop_device(struct dwc3_msm *mdwc, bool start)
 	dwc3_ext_event_notify(mdwc);
 	dbg_event(0xFF, "flush_work", 0);
 	flush_work(&mdwc->resume_work);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	flush_workqueue(mdwc->sm_usb_wq);
+#else
 	drain_workqueue(mdwc->sm_usb_wq);
+#endif
 	if (start)
 		dbg_log_string("device mode restarted");
 	else
@@ -4657,7 +4665,11 @@ int dwc3_msm_release_ss_lane(struct device *dev, bool usb_dp_concurrent_mode)
 	dbg_event(0xFF, "ss_lane_release", 0);
 	/* flush any pending work */
 	flush_work(&mdwc->resume_work);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	flush_workqueue(mdwc->sm_usb_wq);
+#else
 	drain_workqueue(mdwc->sm_usb_wq);
+#endif
 
 	redriver_release_usb_lanes(mdwc->ss_redriver_node);
 

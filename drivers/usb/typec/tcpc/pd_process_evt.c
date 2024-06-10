@@ -582,6 +582,12 @@ static inline bool pe_is_valid_pd_msg_id(struct pd_port *pd_port,
 		pd_port->miss_msg = true;
 	}
 
+	if (is_sc2150a && (pd_port->pe_pd_state == PE_SNK_SEND_SOFT_RESET &&
+			pd_port->pe_data.msg_id_rx[sop_type] == 1)) {
+		PE_INFO("Miss Msg!!!\n");
+		pd_port->miss_msg = true;
+	}
+
 	pd_port->pe_data.msg_id_rx[sop_type] = msg_id;
 	return true;
 }
@@ -780,9 +786,9 @@ bool pd_process_event(
 	bool ret = false;
 	struct pd_msg *pd_msg = pd_event->pd_msg;
 	uint8_t tii = pe_check_trap_in_idle_state(pd_port, pd_event);
-	uint32_t chip_id;
+	uint32_t chip_id = 0;
 	bool is_sc2150a = false;
-	int rc;
+	int rc = 0;
 
 	if (tii < TII_PE_RUNNING)
 		return tii;
@@ -814,20 +820,29 @@ bool pd_process_event(
 		if (is_sc2150a && pd_port->miss_msg) {
 			pd_port->miss_msg = false;
 			if (pd_port->pe_pd_state == PE_SNK_TRANSITION_SINK) {
-				if (pd_event->msg != PD_CTRL_PS_RDY) {
+				if (!(pd_event->msg == PD_CTRL_PS_RDY &&
+						pd_event->event_type == PD_EVT_CTRL_MSG)) {
 					pd_add_miss_msg(pd_port,pd_event,PD_CTRL_PS_RDY);
 					return false;
 				}
 			} else if (pd_port->pe_pd_state == PE_SNK_SELECT_CAPABILITY){
 				switch (pd_event->msg) {
 				case PD_CTRL_PS_RDY:
-					pd_add_miss_msg(pd_port, pd_event, PD_CTRL_ACCEPT);
+					if(pd_event->event_type == PD_EVT_CTRL_MSG)
+						pd_add_miss_msg(pd_port, pd_event, PD_CTRL_ACCEPT);
 					break;
 				case PD_DATA_SOURCE_CAP:
-					pd_add_miss_msg(pd_port, pd_event, PD_CTRL_REJECT);
+					if(pd_event->event_type == PD_EVT_DATA_MSG)
+						pd_add_miss_msg(pd_port, pd_event, PD_CTRL_REJECT);
 					break;
 				}
 				return false;
+			} else if (pd_port->pe_pd_state == PE_SNK_SEND_SOFT_RESET) {
+				if (pd_event->msg == PD_DATA_SOURCE_CAP &&
+						pd_event->event_type == PD_EVT_DATA_MSG) {
+					pd_add_miss_msg(pd_port,pd_event,PD_CTRL_ACCEPT);
+					return false;
+				}
 			}
 		}
 	}

@@ -73,6 +73,8 @@ int oplus_dimlayer_bl_enable_v3_real;
 int oplus_dimlayer_bl_enable_v2_real = 0;
 bool oplus_skip_datadimming_sync = false;
 
+uint64_t serial_number_fir = 0x0;
+
 extern int oplus_debug_max_brightness;
 int oplus_seed_backlight = 0;
 
@@ -86,6 +88,7 @@ int aod_size = 0;
 int g_cabc_recover = 0;
 extern uint32_t g_cabc_mode;
 extern int oplus_display_set_cabc_status(void *buf);
+extern unsigned int is_project(int project);
 /* #endif */
 
 
@@ -247,6 +250,9 @@ int dsi_panel_read_panel_reg(struct dsi_display_ctrl *ctrl,
 		return 1;
 	}
 
+	/* acquire panel_lock to make sure no commands are in progress */
+	mutex_lock(&panel->panel_lock);
+
 	if (!dsi_panel_initialized(panel)) {
 		rc = -EINVAL;
 		goto error;
@@ -276,6 +282,8 @@ int dsi_panel_read_panel_reg(struct dsi_display_ctrl *ctrl,
 	}
 
 error:
+	/* release panel_lock */
+	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
 
@@ -329,12 +337,14 @@ int dsi_display_read_panel_reg(struct dsi_display *display, u8 cmd, void *data,
 	if (!strcmp(display->panel->name, "dsjm ili7807s 21707 fhd plus mipi panel with DSC") \
 		|| !strcmp(display->panel->name, "jdi td4377 21707 fhd plus mipi panel with DSC") \
 		|| !strcmp(display->panel->name, "cost ili7807s 22667 fhd plus mipi panel with DSC") \
-		|| !strcmp(display->panel->name, "djnt nt36523a 21653 fhdp mipi panel")) {
+		|| !strcmp(display->panel->name, "djnt nt36523a 21653 fhdp mipi panel") \
+		|| !strcmp(panel->name,"nt36672c video mode dsi fhd 1080 panel") \
+		|| !strcmp(panel->name,"ili7807s video mode dsi fhd panel")) {
 		return 0;
 	}
 /* #endif */
 
-	mutex_lock(&panel->panel_lock);
+	mutex_lock(&display->display_lock);
 
 	m_ctrl = &display->ctrl[display->cmd_master_idx];
 
@@ -378,7 +388,83 @@ int dsi_display_read_panel_reg(struct dsi_display *display, u8 cmd, void *data,
 	dsi_display_cmd_engine_disable(display);
 
 done:
-	mutex_unlock(&panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+	pr_err("%s, return: %d\n", __func__, rc);
+	return rc;
+}
+
+int dsi_display_read_panel_reg_switch_page(struct dsi_display *display, u8 cmd, void *data,
+			       size_t len)
+{
+	int rc = 0;
+	struct dsi_panel *panel;
+	struct dsi_display_ctrl *m_ctrl;
+
+	if (!display || !display->panel || data == NULL) {
+		pr_err("%s, Invalid params\n", __func__);
+		return -EINVAL;
+	}
+
+	panel = display->panel;
+
+	mutex_lock(&display->display_lock);
+
+	rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_PANEL_INFO_SWITCH_PAGE);
+	if (rc) {
+		printk(KERN_ERR"%s Failed to set DSI_CMD_PANEL_INFO_SWITCH_PAGE !!\n", __func__);
+		goto done;
+	}
+
+
+	m_ctrl = &display->ctrl[display->cmd_master_idx];
+
+	if (display->tx_cmd_buf == NULL) {
+		rc = dsi_host_alloc_cmd_tx_buffer(display);
+
+		if (rc) {
+			pr_err("%s, failed to allocate cmd tx buffer memory\n", __func__);
+			goto done;
+		}
+	}
+
+	rc = dsi_display_cmd_engine_enable(display);
+
+	if (rc) {
+		pr_err("%s, cmd engine enable failed\n", __func__);
+		goto done;
+	}
+
+	/* enable the clk vote for CMD mode panels */
+	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+		dsi_display_clk_ctrl(display->dsi_clk_handle,
+				     DSI_ALL_CLKS, DSI_CLK_ON);
+	}
+
+	rc = dsi_panel_read_panel_reg(m_ctrl, display->panel, cmd, data, len);
+
+	if (rc < 0) {
+		pr_err("%s, [%s] failed to read panel register, rc=%d,cmd=%d\n",
+		       __func__,
+		       display->name,
+		       rc,
+		       cmd);
+	}
+
+	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+		rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
+					  DSI_ALL_CLKS, DSI_CLK_OFF);
+	}
+
+	dsi_display_cmd_engine_disable(display);
+
+	rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_DEFAULT_SWITCH_PAGE);
+	if (rc) {
+			printk(KERN_ERR"%s Failed to set DSI_CMD_DEFAULT_SWITCH_PAGE !!\n", __func__);
+			goto done;
+	}
+
+done:
+	mutex_unlock(&display->display_lock);
 	pr_err("%s, return: %d\n", __func__, rc);
 	return rc;
 }
@@ -564,7 +650,9 @@ bool is_nonsupport_ramless(const char *panel_name) {
 
 	if ((!strcmp(panel_name, "ILI7838A")) ||
 		(!strcmp(panel_name, "NT37705")) ||
+		(!strcmp(panel_name, "VISIONOXILI7838A")) ||
 		(!strcmp(panel_name, "AMS643YE01")) ||
+		(!strcmp(panel_name, "AMS643AG02")) ||
 		(!strcmp(panel_name, "S6E3HC3")) ||
 		(!strcmp(panel_name, "AMS662ZS01"))) {
 		is_nonsupport = true;
@@ -668,7 +756,10 @@ static ssize_t oplus_display_get_panel_serial_number(struct kobject *obj,
 		struct kobj_attribute *attr, char *buf)
 {
 	int ret = 0;
+	int read_index = 0;
+	int len = 0;
 	unsigned char read[30];
+	unsigned char ret_val[1];
 	PANEL_SERIAL_INFO panel_serial_info;
 	uint64_t serial_number;
 	struct dsi_display *display = get_main_display();
@@ -687,11 +778,62 @@ static ssize_t oplus_display_get_panel_serial_number(struct kobject *obj,
         g_oplus_need_lp_mode = true;
 
 	/*
+	 * To fix bug id 5552142, we do not read serial number frequently.
+	 * First read, then return the saved value.
+	 */
+	if (serial_number_fir != 0) {
+		ret = scnprintf(buf, PAGE_SIZE, "Get panel0 serial number: %llx\n",
+						serial_number_fir);
+		pr_info("%s read serial_number_fir 0x%x\n", __func__, serial_number_fir);
+		return ret;
+	}
+
+	/*
 	 * for some unknown reason, the panel_serial_info may read dummy,
 	 * retry when found panel_serial_info is abnormal.
 	 */
 	for (i = 0; i < 10; i++) {
-		ret = dsi_display_read_panel_reg(get_main_display(), 0xA1, read, 11);
+		if (display->panel->power_mode != SDE_MODE_DPMS_ON) {
+			printk(KERN_ERR"%s display panel in off status\n", __func__);
+			return ret;
+		}
+		if (!display->panel->panel_initialized) {
+			printk(KERN_ERR"%s panel initialized = false\n", __func__);
+			return ret;
+		}
+		if (display->panel->oplus_ser.is_switch_page) {
+			len = sizeof(display->panel->oplus_ser.serial_number_multi_regs) - 1;
+			for (read_index = 0; read_index < len; read_index++) {
+				ret = dsi_display_read_panel_reg_switch_page(display, display->panel->oplus_ser.serial_number_multi_regs[read_index],
+					ret_val, 1);
+				read[read_index] = ret_val[0];
+				if (ret < 0) {
+					ret = scnprintf(buf, PAGE_SIZE,
+						"Get panel serial number failed, reason:%d", ret);
+					msleep(20);
+					break;
+				}
+			}
+		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "NT37705")) {
+			char panel_info_page[] = { 0x55, 0xAA, 0x52, 0x8, 0x1 };
+
+			mutex_lock(&display->display_lock);
+			mutex_lock(&display->panel->panel_lock);
+			if (display->panel->panel_initialized) {
+				if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+					dsi_display_clk_ctrl(display->dsi_clk_handle, DSI_ALL_CLKS, DSI_CLK_ON);
+				}
+
+				ret = mipi_dsi_dcs_write(&display->panel->mipi_device, 0xF0, panel_info_page, sizeof(panel_info_page));
+				if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+					dsi_display_clk_ctrl(display->dsi_clk_handle, DSI_ALL_CLKS, DSI_CLK_OFF);
+				}
+			}
+			mutex_unlock(&display->panel->panel_lock);
+			mutex_unlock(&display->display_lock);
+			ret = dsi_display_read_panel_reg(display, 0xD7, read, 8);
+		} else
+			ret = dsi_display_read_panel_reg(get_main_display(), 0xA1, read, 11);
 
 		if (ret < 0) {
 			ret = scnprintf(buf, PAGE_SIZE,
@@ -708,7 +850,11 @@ static ssize_t oplus_display_get_panel_serial_number(struct kobject *obj,
 		*/
 		if (!strcmp(display->panel->name, "samsung amb655x fhd cmd mode dsc dsi panel"))
 			panel_serial_info.reg_index = 11;
-		else
+		else if (display->panel->oplus_ser.is_switch_page)
+			panel_serial_info.reg_index = display->panel->oplus_ser.serial_number_index;
+		else if (!strcmp(display->panel->oplus_priv.vendor_name, "NT37705")) {
+			panel_serial_info.reg_index = 0;
+		} else
 			panel_serial_info.reg_index = 4;
 
 		panel_serial_info.year		= (read[panel_serial_info.reg_index] & 0xF0) >> 0x4;
@@ -742,6 +888,8 @@ static ssize_t oplus_display_get_panel_serial_number(struct kobject *obj,
 
 		ret = scnprintf(buf, PAGE_SIZE, "Get panel serial number: %llx\n",
 				serial_number);
+		/*Save serial_number value.*/
+		serial_number_fir = serial_number;
 		break;
 	}
 
@@ -2133,6 +2281,7 @@ static ssize_t oplus_display_notify_fp_press(struct kobject *obj,
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
 	if (display->panel->oplus_priv.is_aod_ramless) {
 		struct drm_display_mode *set_mode = NULL;
+		int ret;
 
 		if (oplus_display_mode == 2)
 			goto error;
@@ -2159,7 +2308,9 @@ static ssize_t oplus_display_notify_fp_press(struct kobject *obj,
 
 		if (mode_changed) {
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 
 		wake_up(&oplus_aod_wait);
@@ -2398,6 +2549,7 @@ static ssize_t oplus_display_set_video(struct kobject *obj,
 	int vblank_get = -EINVAL;
 	int err = 0;
 	int i;
+	int ret;
 
 	if (!display || !display->panel) {
 		pr_err("failed to find dsi display\n");
@@ -2466,7 +2618,9 @@ static ssize_t oplus_display_set_video(struct kobject *obj,
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 		wake_up(&oplus_aod_wait);
 	}
@@ -2592,6 +2746,7 @@ int oplus_display_panel_set_video(void *buf) {
 	int vblank_get = -EINVAL;
 	int err = 0;
 	int i;
+	int ret;
 
 	if (!display || !display->panel) {
 		pr_err("failed to find dsi display\n");
@@ -2660,7 +2815,9 @@ int oplus_display_panel_set_video(void *buf) {
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 		wake_up(&oplus_aod_wait);
 	}
@@ -3195,7 +3352,7 @@ int dsi_panel_switch_gamma_mode(struct dsi_panel *panel, u32 bl_lvl)
 {
 	int rc = 0;
 
-	if (bl_lvl < 14 && bl_lvl > 0) {
+	if (bl_lvl < 14 && bl_lvl > 1) {
 		gamma_mode = 1;
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_BACKLIGHT_GAMMA_ENTER);
 		if (rc) {
@@ -3478,7 +3635,7 @@ static ssize_t oplus_display_set_panel_pwr(struct kobject *obj,
 	pr_err("debug for %s, buf = [%s], id = %d value = %d, count = %d\n",
 	       __func__, buf, panel_vol_id, panel_vol_value, count);
 
-	if (panel_vol_id < 0 || panel_vol_id > PANEL_VOLTAGE_ID_MAX) {
+	if (panel_vol_id < 0 || panel_vol_id >= PANEL_VOLTAGE_ID_MAX) {
 		return -EINVAL;
 	}
 

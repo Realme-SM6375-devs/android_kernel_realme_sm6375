@@ -204,6 +204,7 @@ static bool wcd_mbhc_adc_detect_anc_plug_type(struct wcd_mbhc *mbhc)
 	u8 vref = 0;
 	int vref_mv[] = {1650, 1500, 1600, 1700};
 
+
 #ifdef OPLUS_ARCH_EXTENDS
 #undef pr_debug
 #define pr_debug pr_info
@@ -360,6 +361,7 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	/* Update cross connection threshold voltages if needed */
 	if (mbhc->mbhc_cb->update_cross_conn_thr)
 		mbhc->mbhc_cb->update_cross_conn_thr(mbhc);
+
 
 	#ifndef OPLUS_ARCH_EXTENDS
 	if (hphl_adc_res > mbhc->hphl_cross_conn_thr ||
@@ -864,6 +866,14 @@ static int wcd_mbhc_get_plug_from_adc(struct wcd_mbhc *mbhc, int adc_result)
 }
 
 #ifdef OPLUS_ARCH_EXTENDS
+struct delayed_work hskey_block_work;
+bool g_hskey_block_flag = false;
+static void disable_hskey_block_callback(struct work_struct *work)
+{
+	pr_info("mbhc disable_hskey_block_callback:\n");
+	g_hskey_block_flag = false;
+}
+
 #define TRY_SWITCH_THRESHOLD_MV    700
 #endif /* OPLUS_ARCH_EXTENDS */
 
@@ -880,7 +890,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int ret = 0;
 	int spl_hs_count = 0;
 	int output_mv = 0;
-	int cross_conn;
+	int cross_conn = 0;
 	int try = 0;
 	int hs_threshold, micbias_mv;
 	#ifdef OPLUS_ARCH_EXTENDS
@@ -933,7 +943,6 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 			 __func__, plug_type);
 		goto correct_plug_type;
 	}
-
 	/* Find plug type */
 	output_mv = wcd_measure_adc_continuous(mbhc);
 	plug_type = wcd_mbhc_get_plug_from_adc(mbhc, output_mv);
@@ -1200,7 +1209,6 @@ correct_plug_type:
 			if (plug_type != MBHC_PLUG_TYPE_GND_MIC_SWAP) {
 				plug_type = wcd_mbhc_get_plug_from_adc(
 						mbhc, output_mv);
-
 				#ifdef OPLUS_ARCH_EXTENDS
 				if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
 					headphone_count++;
@@ -1661,6 +1669,11 @@ void wcd_mbhc_adc_init(struct wcd_mbhc *mbhc)
 
 	#ifdef OPLUS_ARCH_EXTENDS
 	INIT_DELAYED_WORK(&mbhc->mech_irq_trigger_dwork, wcd_mech_irq_dwork);
+	#endif /* OPLUS_ARCH_EXTENDS */
+
+	#ifdef OPLUS_ARCH_EXTENDS
+	INIT_DELAYED_WORK(&hskey_block_work, disable_hskey_block_callback);
+	g_hskey_block_flag = false;
 	#endif /* OPLUS_ARCH_EXTENDS */
 }
 EXPORT_SYMBOL(wcd_mbhc_adc_init);

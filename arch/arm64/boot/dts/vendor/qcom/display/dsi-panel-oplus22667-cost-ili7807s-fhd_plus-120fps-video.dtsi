@@ -114,76 +114,9 @@
 					15 01 00 00 00 00 02 86 6C  //thre m
 					15 01 00 00 00 00 02 87 6C  //thre h
 
-					39 01 00 00 00 00 04 FF 78 07 0A
-					39 01 00 00 00 00 AF 00 00 02 03 07 0B 0E 12 17 1B 1F 23 27 2A 2F 32 36 3A 3E 42 46 4A 4E 52 55 5D 65 6C 7D 8D 95 9C A4 AC B5 BD C5 CD D6 DE E6 EE F7 F9 FB FE FF 60 6C 1B 13 18 C9 A3 11 56 92 E7 00 00 02 04 08 0C 0F 13 17 1C 20 24 28 2C 30 33 37 3C 40 44 48 4D 50 54 58 60 68 6F 81 91 98 9F A7 B0 B9 C0 C8 D0 D8 E0 E8 F0 F8 FA FC FE FF 40 D8 14 F0 94 FC 73 F5 60 AE 56 00 00 00 02 07 0C 0F 12 15 1A 1E 22 26 29 2D 31 35 39 3D 41 45 49 4D 51 54 5C 63 6B 7B 8B 93 9A A1 AA B2 BB C3 CB D3 DC E4 ED F6 F8 FB FD FF 9C E8 15 2F 14 C4 8A D1 08 8C 25 02
-
-					39 01 00 00 00 00 04 FF 78 07 00
-					39 01 00 00 00 00 03 68 03 00
-					39 01 00 00 00 00 03 51 00 00
-					15 01 00 00 00 00 02 53 24
-					15 01 00 00 00 00 02 35 00
-					05 01 00 00 3F 00 01 11
-					05 01 00 00 03 00 01 29
-				];
-				qcom,oplus-mdss-dsi-on-command = [
-					39 01 00 00 00 00 04 FF 78 07 06
-					15 01 00 00 00 00 02 08 20
-					15 01 00 00 00 00 02 3E E2
-					15 01 00 00 00 00 02 8D EC
-
-					39 01 00 00 00 00 04 FF 78 07 03
-					15 01 00 00 00 00 02 81 14  //step
-					15 01 00 00 00 00 02 82 15  //step
-					15 01 00 00 00 00 02 83 20
-					15 01 00 00 00 00 02 84 01
-
-					39 01 00 00 00 00 04 FF 78 07 03
-					15 01 00 00 00 00 02 88 DB  //CC Black 80%->86%
-					15 01 00 00 00 00 02 89 E5  //grey 89.84%
-					15 01 00 00 00 00 02 8A ED  //fruit 92.97%
-					15 01 00 00 00 00 02 8B EF
-					15 01 00 00 00 00 02 B3 E5  //desktop 89.84%
-					15 01 00 00 00 00 02 A6 E6	//aw duty1 low
-					15 01 00 00 00 00 02 AC FA  //white 98%   aw duty3 low
-
-					15 01 00 00 00 00 02 A7 F3  //E5  //aw duty1 med
-					15 01 00 00 00 00 02 AD E3  //E0  //white aw duty3 med
-					15 01 00 00 00 00 02 8C AD  //9B black 60.94%->68%
-					15 01 00 00 00 00 02 8D B1  //
-					15 01 00 00 00 00 02 8E B4  //
-					15 01 00 00 00 00 02 8F B7  //
-					15 01 00 00 00 00 02 90 BB  //grey 69.92%->73.44%
-					15 01 00 00 00 00 02 91 BF  //
-					15 01 00 00 00 00 02 92 C3  //
-					15 01 00 00 00 00 02 93 C7  //BA fruit 73%->78.1%
-					15 01 00 00 00 00 02 94 CA
-					15 01 00 00 00 00 02 95 D5
-					15 01 00 00 00 00 02 B4 D9  //desktop 85.2%
-
-					15 01 00 00 00 00 02 A8 EE  //E5  //aw duty1 hi
-					15 01 00 00 00 00 02 AE DE  //D3  //white aw duty3 hi
-					15 01 00 00 00 00 02 96 90  //70 black 44.14%->56.64%
-					15 01 00 00 00 00 02 97 97  //L4-L19
-					15 01 00 00 00 00 02 98 99
-					15 01 00 00 00 00 02 99 9F
-					15 01 00 00 00 00 02 9A A3  //grey 64%
-					15 01 00 00 00 00 02 9B A6
-					15 01 00 00 00 00 02 9C A9
-					15 01 00 00 00 00 02 9D BD  //AD fruit 67.97%->74.2%
-					15 01 00 00 00 00 02 9E C2
-					15 01 00 00 00 00 02 9F CC
-					15 01 00 00 00 00 02 B5 D0  //desktop 81%
-
-					15 01 00 00 00 00 02 A0 C0  //aw thre1 en+low
-					15 01 00 00 00 00 02 A1 7E  //aw thre1 med
-					15 01 00 00 00 00 02 A2 7E  //aw thre1 hi
-					15 01 00 00 00 00 02 B6 00  //boost l
-					15 01 00 00 00 00 02 B7 D0  //boost m
-					15 01 00 00 00 00 02 B8 D0  //boost h
-					15 01 00 00 00 00 02 B1 66  //hsat thre m
-					15 01 00 00 00 00 02 B2 66  //hsat thre h
-					15 01 00 00 00 00 02 86 6C  //thre m
-					15 01 00 00 00 00 02 87 6C  //thre h
+					39 01 00 00 00 00 04 FF 78 07 08
+					39 01 00 00 00 00 20 E0 00 00 20 52 00 94 C4 EA 15 20 4B 8A 25 B9 FF 3B 2A 6F AC D2 3F 05 23 4C 3F 69 8D B7 0F CE D7
+					39 01 00 00 00 00 20 E1 00 00 20 52 00 94 C4 EA 15 20 4B 8A 25 B9 FF 3B 2A 6F AC D2 3F 05 23 4C 3F 69 8D B7 0F CE D7
 
 					39 01 00 00 00 00 04 FF 78 07 0A
 					39 01 00 00 00 00 AF 00 00 02 03 07 0B 0E 12 17 1B 1F 23 27 2A 2F 32 36 3A 3E 42 46 4A 4E 52 55 5D 65 6C 7D 8D 95 9C A4 AC B5 BD C5 CD D6 DE E6 EE F7 F9 FB FE FF 60 6C 1B 13 18 C9 A3 11 56 92 E7 00 00 02 04 08 0C 0F 13 17 1C 20 24 28 2C 30 33 37 3C 40 44 48 4D 50 54 58 60 68 6F 81 91 98 9F A7 B0 B9 C0 C8 D0 D8 E0 E8 F0 F8 FA FC FE FF 40 D8 14 F0 94 FC 73 F5 60 AE 56 00 00 00 02 07 0C 0F 12 15 1A 1E 22 26 29 2D 31 35 39 3D 41 45 49 4D 51 54 5C 63 6B 7B 8B 93 9A A1 AA B2 BB C3 CB D3 DC E4 ED F6 F8 FB FD FF 9C E8 15 2F 14 C4 8A D1 08 8C 25 02
@@ -191,7 +124,7 @@
 					39 01 00 00 00 00 04 FF 78 07 00
 					39 01 00 00 00 00 03 68 03 00
 					39 01 00 00 00 00 03 51 00 00
-					15 01 00 00 00 00 02 53 24
+					15 01 00 00 00 00 02 53 2C
 					15 01 00 00 00 00 02 35 00
 					05 01 00 00 3F 00 01 11
 					05 01 00 00 03 00 01 29
@@ -259,12 +192,13 @@
 &dsi_oplus22667_cost_ili7807s_fhd_plus_120fps_video {
 	oplus,mdss-dsi-manufacture = "dsjm";
 	oplus,mdss-dsi-vendor-name = "JDI_ILI7807S";
-	oplus,mdss-dsi-pre-bl-delay-enabled;
-	oplus,mdss-dsi-pre-bl-delay-ms = <30>;
+	// oplus,mdss-dsi-pre-bl-delay-enabled;
+	// oplus,mdss-dsi-pre-bl-delay-ms = <30>;
 	oplus,mdss-dsi-cabc-enabled;
-	oplus,mdss-dsi-gamma-switch-enabled;
+	// oplus,mdss-dsi-gamma-switch-enabled;
 	oplus,mdss-dsi-lp-config-flag;
-	oplus,lcd_switch_enabled;
+	// oplus,lcd_switch_enabled;
+	oplus,dimming-control;
 	oplus,dfps-idle-off;
 	oplus,disable-53h-control;
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb>;

@@ -1344,7 +1344,6 @@ ssize_t oplus_sde_evtlog_dump_read(struct file *file, char __user *buff,
 EXPORT_SYMBOL(oplus_sde_evtlog_dump_read);
 #endif /*OPLUS_BUG_STABILITY*/
 
-
 #ifdef CONFIG_DEBUG_FS
 /*
  * sde_dbg_debugfs_open - debugfs open handler for evtlog dump

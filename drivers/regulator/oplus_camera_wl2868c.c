@@ -40,6 +40,7 @@ struct i2c_device{
 struct i2c_device which_ldo_chip[] = {
     {WL2868C_LDO_I2C_ADDR,  WL2868C_CHIP_REV_ADDR,  CAMERA_LDO_WL2868C,  WL2868C_LDO_EN_ADDR, {0}},
     {FAN53870_LDO_I2C_ADDR, FAN53870_CHIP_REV_ADDR, CAMERA_LDO_FAN53870, FAN53870_LDO_EN_ADDR, {0}},
+    {WL28681C_LDO_I2C_ADDR,  WL28681C_CHIP_REV_ADDR,  CAMERA_LDO_WL28681C,  WL28681C_LDO_EN_ADDR, {0}},
 };
 
 /*****************************************************************************
@@ -68,6 +69,13 @@ static int wl2868c_i2c_remove(struct i2c_client *client);
 /*****************************************************************************
  * Extern Area
  *****************************************************************************/
+
+int wl2868c_check_ldo_status(void)
+{
+	return is_probe_success;
+}
+EXPORT_SYMBOL_GPL(wl2868c_check_ldo_status);
+
 int wl2868c_set_en_ldo(EXT_SELECT ldonum,unsigned int en)
 {
     int ret= 0;
@@ -101,6 +109,8 @@ int wl2868c_set_en_ldo(EXT_SELECT ldonum,unsigned int en)
             value = (ret|(0x01<<ldonum))|0x80;
         }else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_FAN53870) {
             value = (ret|(0x01<<ldonum));
+        }else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_WL28681C) {
+            value = (ret|(0x01<<ldonum))|0x80;
         }
     }
 
@@ -163,6 +173,14 @@ int wl2868c_set_ldo_value(EXT_SELECT ldonum,unsigned int value)
                 } else {
                     Ldo_out = (value - 800)/8 + 99;
                 }
+            } else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_WL28681C) {//WL28681C
+                if (value < 496) {
+                    WL2868C_PRINT("[WL28681C] error vol!!!\n");
+                    ret = -1;
+                    goto out;
+                } else {
+                    Ldo_out = (value - 496)/8 + 61;
+                }
             }
         break;
         case EXT_LDO3:
@@ -192,6 +210,17 @@ int wl2868c_set_ldo_value(EXT_SELECT ldonum,unsigned int value)
                 {
                     Ldo_out = (value - 1500)/8 + 16;
                 }
+            } else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_WL28681C) {//WL28681C
+                if(value < 1372)
+                {
+                    WL2868C_PRINT("[wl2868c-WL28681C] error vol!!!\n");
+                    ret = -1;
+                    goto out;
+                }
+                else
+                {
+                    Ldo_out = (value - 1372)/8;
+                }
             }
         break;
         default:
@@ -206,6 +235,9 @@ int wl2868c_set_ldo_value(EXT_SELECT ldonum,unsigned int value)
     } else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_FAN53870) {
         WL2868C_PRINT("[wl2868c] CAMERA_LDO_FAN53870");
         regaddr = ldonum + LDO1_OUT_ADDR;
+    } else if (which_ldo_chip[ldo_id].ldoId == CAMERA_LDO_WL28681C) {
+        WL2868C_PRINT("[wl2868c] CAMERA_LDO_WL28681C");
+        regaddr = ldonum + WL28681C_LDO1_OUT_ADDR;
     }
 
     WL2868C_PRINT("[wl2868c] ldo_id=%d ldo=%d,value=%d,Ldo_out:%d,regaddr=0x%x\n",ldo_id, ldonum, value, Ldo_out, regaddr);

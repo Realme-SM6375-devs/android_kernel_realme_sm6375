@@ -40,6 +40,7 @@ extern int lcd_closebl_flag;
 extern int spr_mode;
 extern int dynamic_osc_clock;
 int mca_mode = 1;
+uint64_t serial_number0 = 0x0;
 extern int oplus_dimlayer_hbm;
 extern int oplus_dimlayer_bl;
 extern int shutdown_flag;
@@ -340,7 +341,10 @@ end:
 
 int oplus_display_panel_get_serial_number(void *buf) {
 	int ret = 0;
+	int len = 0;
+	int read_index = 0;
 	unsigned char read[30];
+	unsigned char ret_val[1];
 	PANEL_SERIAL_INFO panel_serial_info;
 	struct panel_serial_number *panel_rnum = buf;
 	uint64_t serial_number;
@@ -356,12 +360,29 @@ int oplus_display_panel_get_serial_number(void *buf) {
 		printk(KERN_ERR"%s display panel in off status\n", __func__);
 		return ret;
 	}
-
+	/*
+	* To fix bug id 5552142, we do not read serial number frequently.
+	* First read, then return the saved value.
+	*/
+	if (serial_number0 != 0) {
+		ret = scnprintf(panel_rnum->serial_number, PAGE_SIZE, "Get panel serial number: %llx\n",
+						serial_number0);
+		pr_info("%s read serial_number0 0x%x\n", __func__, serial_number0);
+		return ret;
+	}
 	/*
 	 * for some unknown reason, the panel_serial_info may read dummy,
 	 * retry when found panel_serial_info is abnormal.
 	 */
 	for (i = 0;i < 10; i++) {
+		if (display->panel->power_mode != SDE_MODE_DPMS_ON) {
+			printk(KERN_ERR"%s display panel in off status\n", __func__);
+			return ret;
+		}
+		if (!display->panel->panel_initialized) {
+			printk(KERN_ERR"%s	panel initialized = false\n", __func__);
+			return ret;
+		}
 		if(!strcmp(display->panel->oplus_priv.vendor_name, "S6E3XA1") ||
 				!strcmp(display->panel->oplus_priv.vendor_name, "AMS662ZS01") ||
 				!strcmp(display->panel->oplus_priv.vendor_name, "AMS643YE01") ||
@@ -393,6 +414,39 @@ int oplus_display_panel_get_serial_number(void *buf) {
 				continue;
 			}
 			ret = dsi_display_read_panel_reg(display, 0xD8, read, 22);
+		} else if (display->panel->oplus_ser.is_switch_page) {
+			len = sizeof(display->panel->oplus_ser.serial_number_multi_regs) - 1;
+			for (read_index = 0; read_index < len; read_index++) {
+				ret = dsi_display_read_panel_reg_switch_page(display, display->panel->oplus_ser.serial_number_multi_regs[read_index],
+					ret_val, 1);
+				read[read_index] = ret_val[0];
+				printk("read =%x\n", read[read_index]);
+				if (ret < 0) {
+					ret = scnprintf(buf, PAGE_SIZE,
+						"Get panel serial number failed, reason:%d", ret);
+					msleep(20);
+					break;
+				}
+			}
+		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "NT37705")) {
+				char panel_info_page[] = { 0x55, 0xAA, 0x52, 0x8, 0x1 };
+
+				mutex_lock(&display->display_lock);
+				mutex_lock(&display->panel->panel_lock);
+				if (display->panel->panel_initialized) {
+					if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+						dsi_display_clk_ctrl(display->dsi_clk_handle, DSI_ALL_CLKS, DSI_CLK_ON);
+					}
+
+					ret = mipi_dsi_dcs_write(&display->panel->mipi_device, 0xF0, panel_info_page, sizeof(panel_info_page));
+					if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+						dsi_display_clk_ctrl(display->dsi_clk_handle, DSI_ALL_CLKS, DSI_CLK_OFF);
+					}
+				}
+				mutex_unlock(&display->panel->panel_lock);
+				mutex_unlock(&display->display_lock);
+
+				ret = dsi_display_read_panel_reg(display, 0xD7, read, 8);
 		} else {
 			if (!strcmp(display->panel->oplus_priv.vendor_name, "S6E3HC3")) {
 				ret = dsi_display_read_panel_reg(display, 0xA1, read, 11);
@@ -427,12 +481,13 @@ int oplus_display_panel_get_serial_number(void *buf) {
 		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "S6E3HC3") ||
 				!strcmp(display->panel->oplus_priv.vendor_name, "AMS644VA04")) {
 			panel_serial_info.reg_index = 4;
-		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "NT37701")) {
+		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "NT37701")
+			|| !strcmp(display->panel->oplus_priv.vendor_name, "NT37705")) {
 			panel_serial_info.reg_index = 0;
 		} else if (!strcmp(display->panel->oplus_priv.vendor_name, "S6E3XA1")) {
 			panel_serial_info.reg_index = 15;
 		} else {
-			panel_serial_info.reg_index = 10;
+			panel_serial_info.reg_index = display->panel->oplus_ser.serial_number_index;
 		}
 		panel_serial_info.year		= (read[panel_serial_info.reg_index] & 0xF0) >> 0x4;
 		panel_serial_info.month		= read[panel_serial_info.reg_index]	& 0x0F;
@@ -468,6 +523,8 @@ int oplus_display_panel_get_serial_number(void *buf) {
 		}
 
 		ret = scnprintf(panel_rnum->serial_number, PAGE_SIZE, "Get panel serial number: %llx\n",serial_number);
+		/*Save serial_number value.*/
+		serial_number0 = serial_number;
 		break;
 	}
 
@@ -967,6 +1024,7 @@ int oplus_display_get_dp_support(void *buf)
    "Bit 7 (0x80)  will enable LEASE messages (leasing code)\n"
    "Bit 8 (0x100) will enable DP messages (displayport code)"); */
 extern unsigned int drm_debug;
+unsigned int oplus_dsi_log_type = OPLUS_DEBUG_LOG_DISABLED;
 int oplus_display_set_qcom_loglevel(void *data)
 {
 	struct kernel_loglevel *k_loginfo = data;
@@ -977,15 +1035,23 @@ int oplus_display_set_qcom_loglevel(void *data)
 
 	if (k_loginfo->enable) {
 		if (k_loginfo->log_level < 0x1F) {
-			drm_debug = 0x1F;
+			oplus_dsi_log_type |= OPLUS_DEBUG_LOG_BACKLIGHT;
+			oplus_dsi_log_type |= OPLUS_DEBUG_LOG_CMD;
 		} else {
 			drm_debug = 0x1F;
 		}
 	} else {
+		oplus_dsi_log_type &= ~OPLUS_DEBUG_LOG_BACKLIGHT;
+		oplus_dsi_log_type &= ~OPLUS_DEBUG_LOG_CMD;
 		drm_debug = 0x0;
 	}
 
-	printk("%s drm_debug level = 0x%2x\n", __func__, drm_debug);
+	printk("%s drm_debug level = 0x%2x, enable:0x%X, level:0x%X, current:0x%X\n",
+			__func__,
+			drm_debug,
+			k_loginfo->enable,
+			k_loginfo->log_level,
+			oplus_dsi_log_type);
 	return 0;
 }
 

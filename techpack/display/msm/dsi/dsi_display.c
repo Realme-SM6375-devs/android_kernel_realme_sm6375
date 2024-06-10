@@ -21,6 +21,7 @@
 #include "dsi_pwr.h"
 #include "sde_dbg.h"
 #include "dsi_parser.h"
+
 #ifdef OPLUS_BUG_STABILITY
 #ifdef OPLUS_BUG_STABILITY
 #ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
@@ -1050,16 +1051,17 @@ int dsi_display_check_status(struct drm_connector *connector, void *display,
 		panel->esd_config.esd_enabled = false;
 	}
 
-	if (rc <= 0 && te_check_override)
+	/*
+	 * TE check may fail even if status read is passing. In case of
+	 * te_check_override, check the status both from reg read and TE.
+	 */
+	if (rc > 0 && te_check_override)
 		rc = dsi_display_status_check_te(dsi_display, te_rechecks);
 	/* Unmask error interrupts if check passed*/
 	if (rc > 0) {
 		dsi_display_set_ctrl_esd_check_flag(dsi_display, false);
 		dsi_display_mask_ctrl_error_interrupts(dsi_display, mask,
 							false);
-		if (te_check_override && panel->esd_config.esd_enabled == false)
-			rc = dsi_display_status_check_te(dsi_display,
-					te_rechecks);
 	}
 
 	dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
@@ -6072,7 +6074,7 @@ static int dsi_display_bind(struct device *dev,
 #ifndef OPLUS_BUG_STABILITY
 error_host_deinit:
 	(void)dsi_display_mipi_host_deinit(display);
-#endif /* OPLUS_BUG_STABILITY */	
+#endif /* OPLUS_BUG_STABILITY */
 error_clk_client_deinit:
 	(void)dsi_deregister_clk_handle(display->dsi_clk_handle);
 error_clk_deinit:
@@ -6482,6 +6484,7 @@ int dsi_display_drm_bridge_init(struct dsi_display *display,
 
 	display->bridge = bridge;
 	priv->bridges[priv->num_bridges++] = &bridge->base;
+
 	if (display->tx_cmd_buf == NULL) {
 		rc = dsi_host_alloc_cmd_tx_buffer(display);
 		if (rc)
@@ -7637,6 +7640,7 @@ int dsi_display_validate_mode_change(struct dsi_display *display,
 					goto error;
 				}
 
+
 				#ifndef OPLUS_BUG_STABILITY
 				adj_mode->dsi_mode_flags |=
 						DSI_MODE_FLAG_DYN_CLK;
@@ -8728,7 +8732,6 @@ int dsi_display_post_enable(struct dsi_display *display)
 
 		if (display->config.panel_mode == DSI_OP_VIDEO_MODE)
 			dsi_panel_mode_switch_to_vid(display->panel);
-
 	} else {
 		rc = dsi_panel_post_enable(display->panel);
 		if (rc)
@@ -8854,8 +8857,6 @@ int dsi_display_disable(struct dsi_display *display)
 	}
 
 	SDE_EVT32(SDE_EVTLOG_FUNC_ENTRY);
-
-
 	mutex_lock(&display->display_lock);
 
 	/* cancel delayed work */
@@ -8922,7 +8923,6 @@ int dsi_display_disable(struct dsi_display *display)
 	}
 	mutex_unlock(&display->display_lock);
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
-
 	return rc;
 }
 

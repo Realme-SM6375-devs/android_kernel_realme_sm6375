@@ -1632,6 +1632,11 @@ static int aw_cali_misc_params_ptr(struct aw_device *aw_dev, struct ptr_params_d
 		return ret;
 	}
 
+	if (p_params->len <= 0) {
+		aw_dev_err(aw_dev->dev, "malloc len is err!\n");
+		return -ENOMEM;
+	}
+
 	p_data = kzalloc(p_params->len, GFP_KERNEL);
 	if (p_data == NULL) {
 		aw_dev_err(aw_dev->dev, "error allocating memory");
@@ -1739,6 +1744,11 @@ static int aw_cali_misc_ops_read(struct aw_device *aw_dev,
 	char *data_ptr = NULL;
 	int32_t *data_32_ptr = NULL;
 
+	if (!data_len) {
+		aw_dev_err(aw_dev->dev, "malloc len is err!\n");
+		return -ENOMEM;
+	}
+
 	data_ptr = kzalloc(data_len, GFP_KERNEL);
 	if (!data_ptr) {
 		aw_dev_err(aw_dev->dev, "malloc failed !");
@@ -1793,6 +1803,11 @@ static int aw_cali_misc_read_dsp(struct aw_device *aw_dev, aw_ioctl_msg_t *msg)
 	uint32_t dsp_msg_id = (uint32_t)msg->opcode_id;
 	int data_len = msg->data_len;
 	char *data_ptr = NULL;
+
+	if (!data_len) {
+		aw_dev_err(aw_dev->dev, "malloc len is err!\n");
+		return -ENOMEM;
+	}
 
 	data_ptr = kzalloc(data_len, GFP_KERNEL);
 	if (!data_ptr) {
@@ -2058,7 +2073,7 @@ static ssize_t aw_cali_misc_read(struct file *filp, char __user *buf, size_t siz
 	case CALI_STR_DEV_NUM: {
 		if (aw_dev->ops.aw_get_dev_num) {
 			dev_num = aw_dev->ops.aw_get_dev_num();
-			len += snprintf(local_buf + len, sizeof(local_buf) - len, "dev_num:%d\n", dev_num);
+			len += snprintf(local_buf + len, sizeof(local_buf) - len, "dev_num:%u\n", dev_num);
 		} else {
 			aw_dev_err(aw_dev->dev, "get dev num is NULL");
 			return -EINVAL;

@@ -21,13 +21,13 @@
 #include <linux/pmic-voter.h>
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
-#include "../../supply/qcom/smb5-reg.h"
-#include "../../supply/qcom/schgm-flash.h"
-#include "../../supply/qcom/battery.h"
-#include "../../supply/qcom/step-chg-jeita.h"
+#include "../../../../kernel/msm-4.19/drivers/power/supply/qcom/smb5-reg.h"
+#include "../../../../kernel/msm-4.19/drivers/power/supply/qcom/schgm-flash.h"
+#include "../../../../kernel/msm-4.19/drivers/power/supply/qcom/battery.h"
+#include "../../../../kernel/msm-4.19/drivers/power/supply/qcom/step-chg-jeita.h"
 #include "../voocphy/oplus_voocphy.h"
 #ifdef OPLUS_CUSTOM_OP_DEF
-#include "../../supply/qcom/storm-watch.h"
+#include "../../../../kernel/msm-4.19/drivers/power/supply/qcom/storm-watch.h"
 #endif
 #endif
 
@@ -6151,7 +6151,7 @@ int smblib_set_prop_pd_active(struct smb_charger *chg,
         }
     }
 #endif
-	power_supply_changed(chg->usb_psy);
+
 	return rc;
 }
 
@@ -7261,10 +7261,12 @@ irqreturn_t usb_plugin_irq_handler(int irq, void *data)
 	struct smb_charger *chg = irq_data->parent_data;
 #ifdef OPLUS_FEATURE_CHG_BASIC//Fanhong.Kong@ProDrv.CHG,add 2018/06/02 for SVOOC OTG	
 	struct oplus_chg_chip *chip = g_oplus_chip;
+	int typec_mode;
 
+	typec_mode = smblib_get_prop_typec_mode(chg);
 	if (oplus_is_use_external_boost() || (chip->vbatt_num == 2)) {
-		if (chg->typec_mode == POWER_SUPPLY_TYPEC_SINK ||
-		    chg->typec_mode == POWER_SUPPLY_TYPEC_SINK_POWERED_CABLE) {
+		if (typec_mode == POWER_SUPPLY_TYPEC_SINK ||
+		    typec_mode == POWER_SUPPLY_TYPEC_SINK_POWERED_CABLE) {
 			pr_info("%s:chg->typec_mode = sink return!\n", __func__);
 			return IRQ_HANDLED;
 		}
@@ -11062,28 +11064,28 @@ void oplus_ccdetect_enable(void)
 
 	rc = smblib_read(chg, TYPE_C_MODE_CFG_REG, &stat);
 	if (rc < 0) {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: 111 Couldn't read 0x1368 rc=%d\n", __func__, rc);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: 111 Couldn't read 0x1544 rc=%d\n", __func__, rc);
 	} else {
-		printk(KERN_ERR "[OPLUS_CHG][%s]:111 reg0x1368[0x%x], bit[2:0]=0(DRP)\n", __func__, stat);
+		printk(KERN_ERR "[OPLUS_CHG][%s]:111 reg0x1544[0x%x], bit[2:0]=0(DRP)\n", __func__, stat);
 	}
 
-	/* set DRP mode */
+	/* set try sink mode */
 	rc = smblib_masked_write(chg, TYPE_C_MODE_CFG_REG,
-			TYPEC_POWER_ROLE_CMD_MASK, 0x0);//bit[2:0]=0
+			TYPEC_POWER_ROLE_CMD_MASK | TYPEC_TRY_MODE_MASK, EN_TRY_SNK_BIT);/*bit[4:0]= 0x10*/
 	if (rc < 0) {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't clear 0x1368[0] rc=%d\n", __func__, rc);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't clear 0x1544[0] rc=%d\n", __func__, rc);
 	}
 
 	rc = smblib_read(chg, TYPE_C_MODE_CFG_REG, &stat);
 	if (rc < 0) {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't read 0x1368 rc=%d\n", __func__, rc);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't read 0x1544 rc=%d\n", __func__, rc);
 	} else {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: reg0x1368[0x%x], bit[2:0]=0(DRP)\n", __func__, stat);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: reg0x1544[0x%x], bit[2:0]=0(DRP)\n", __func__, stat);
 	}
 }
 
 void oplus_ccdetect_disable(void)
-{    
+{
 	int rc;
 	u8 stat;
 	struct smb_charger *chg = NULL;
@@ -11105,14 +11107,14 @@ void oplus_ccdetect_disable(void)
 			TYPEC_POWER_ROLE_CMD_MASK | TYPEC_TRY_MODE_MASK, EN_SNK_ONLY_BIT);//bit[4:0]=0x02
 #endif
 	if (rc < 0) {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't set 0x1368[2] rc=%d\n", __func__, rc);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't set 0x1544[2] rc=%d\n", __func__, rc);
 	}
 
 	rc = smblib_read(chg, TYPE_C_MODE_CFG_REG, &stat);
 	if (rc < 0) {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't read 0x1368 rc=%d\n", __func__, rc);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: Couldn't read 0x1544 rc=%d\n", __func__, rc);
 	} else {
-		printk(KERN_ERR "[OPLUS_CHG][%s]: reg0x1368[0x%x], bit[2:0]=4(UFP)\n", __func__, stat);
+		printk(KERN_ERR "[OPLUS_CHG][%s]: reg0x1544[0x%x], bit[2:0]=4(UFP)\n", __func__, stat);
 	}
 }
 
@@ -13651,6 +13653,7 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MIN,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 #endif
 };
 
@@ -16709,14 +16712,16 @@ int oplus_chg_set_pd_config()
 {
 	int ret = 0;
 	struct oplus_chg_chip *chip = g_oplus_chip;
-	int cnt_pd_retry = 0;
-	
+	int cnt_pd_retry = 0, charger_volt = 0;
+
 	if (!chip) {
 		return -1;
 	}
 	if(chip->pd_svooc){
 		return 0;
 	}
+	/*** wait 300ms for pd_active = true,then subtype = CHARGER_SUBTYPE_PD ****/
+	msleep(300);
 	mutex_lock(&pd_select_pdo_v);
 #ifdef OPLUS_CUSTOM_OP_DEF
 	if (chip->vbatt_num == 1) {
@@ -16740,12 +16745,15 @@ int oplus_chg_set_pd_config()
 		oplus_chg_config_charger_vsys_threshold(0x02);//set Vsys Skip threshold 104%
 		oplus_chg_enable_burst_mode(false);
 		ret = oplus_pdo_select(9000, 2000);
-		printk(KERN_ERR "%s: vbus[%d], ibus[%d], ret[%d]\n", __func__, 9000, 2000, ret);
-		while ((ret != 0) && (cnt_pd_retry < 5)) {
-			msleep(200);
+		charger_volt = usbtemp_get_charger_voltage_now();
+		printk(KERN_ERR "%s: vbus[%d], ibus[%d], ret[%d], charger_volt=%d\n", __func__, 9000, 2000, ret, charger_volt);
+		while ((charger_volt < 7500) && (cnt_pd_retry < 5)) {
+			msleep(150);
 			ret = oplus_pdo_select(9000, 2000);
+			msleep(50);
+			charger_volt = usbtemp_get_charger_voltage_now();
 			cnt_pd_retry++;
-			printk(KERN_ERR "%s: vbus[%d], ibus[%d], ret[%d], retry_cnt[%d]\n", __func__, 9000, 2000, ret, cnt_pd_retry);
+			printk(KERN_ERR "%s: vbus[%d], ibus[%d], ret[%d], retry_cnt[%d], charger_volt=%d\n", __func__, 9000, 2000, ret, cnt_pd_retry, charger_volt);
 		}
 		msleep(300);
 		oplus_chg_unsuspend_charger();

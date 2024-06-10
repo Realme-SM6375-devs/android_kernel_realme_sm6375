@@ -412,7 +412,7 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 
 	refresh_rate = dsi_display->panel->cur_mode->timing.refresh_rate;
 	us_per_frame = 1000000/refresh_rate;
-	delay_us = (us_per_frame >> 1) + 500;
+	delay_us = us_per_frame + (us_per_frame >> 1) + 500;
 
 	fingerprint_mode = sde_crtc_get_fingerprint_mode(c_conn->encoder->crtc->state);
 

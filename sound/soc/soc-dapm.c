@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: GPL-2.0+
 //
 // soc-dapm.c  --  ALSA SoC Dynamic Audio Power Management
@@ -1307,11 +1308,23 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		w = dai->playback_widget;
+#ifdef OPLUS_BUG_STABILITY
+		if (w == NULL) {
+			mutex_unlock(&card->dapm_mutex);
+			return -EINVAL;
+		}
+#endif /* OPLUS_BUG_STABILITY */
 		invalidate_paths_ep(w, SND_SOC_DAPM_DIR_OUT);
 		paths = is_connected_output_ep(w, &widgets,
 				custom_stop_condition);
 	} else {
 		w = dai->capture_widget;
+#ifdef OPLUS_BUG_STABILITY
+		if (w == NULL) {
+			mutex_unlock(&card->dapm_mutex);
+			return -EINVAL;
+		}
+#endif /* OPLUS_BUG_STABILITY */
 		invalidate_paths_ep(w, SND_SOC_DAPM_DIR_IN);
 		paths = is_connected_input_ep(w, &widgets,
 				custom_stop_condition);

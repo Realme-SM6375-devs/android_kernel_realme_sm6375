@@ -1252,7 +1252,6 @@ static void bolero_soc_codec_remove(struct snd_soc_component *component)
 	return;
 }
 
-
 #ifdef OPLUS_ARCH_EXTENDS
 static const char * const bolero_reg_dump_text[] = {
 	"ALL",

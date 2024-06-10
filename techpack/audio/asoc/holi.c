@@ -50,11 +50,15 @@
 #include "codecs/sia81xx/sia81xx_aux_dev_if.h"
 //#endif /* OPLUS_ARCH_EXTENDS */
 
+#ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
+#include "./codecs/common/oplus_speaker_manager.h"
+#endif
+
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 #include "feedback/oplus_audio_kernel_fb.h"
 #ifdef dev_err
 #undef dev_err
-#define dev_err dev_err_fb_delay
+#define dev_err dev_err_fb_fatal_delay
 #endif
 #endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
@@ -110,8 +114,8 @@
 #ifdef CONFIG_SND_SOC_AW87XXX
 extern int aw87xxx_add_codec_controls(void *codec);
 extern int aw87xxx_set_profile(int dev_index, char *profile);
-static char *aw_profile[] = {"Music", "Off"};
-static const char *const mode_function[] = { "0", "1" };
+static char *aw_profile[] = {"Music", "Off", "Receiver"};
+static const char *const mode_function[] = { "0", "1" ,"2"};
 enum aw87xxx__dev_index {
 	 AW_DEV_0 = 0,
 	 AW_DEV_1
@@ -327,13 +331,19 @@ static int aw87389_rcv_mode_set(struct snd_kcontrol *kcontrol,
 	int ret = 0;
 	unsigned char en = 0;
 	en = ucontrol->value.integer.value[0];
-	if (en) {
+	if (en == 1) {
 		ret = aw87xxx_set_profile(AW_DEV_0, aw_profile[0]);
 		if (ret < 0) {
 			pr_err("[Awinic] %s: set profile[%s] failed",__func__, aw_profile[0]);
 			return ret;
 		}
-	}
+	} else if (en == 2) {
+                ret = aw87xxx_set_profile(AW_DEV_0, aw_profile[2]);
+		if (ret < 0) {
+			pr_err("[Awinic] %s: set profile[%s] failed",__func__, aw_profile[2]);
+			return ret;
+		}
+        }
 	else {
 		ret = aw87xxx_set_profile(AW_DEV_0, aw_profile[1]);
 		if (ret < 0) {
@@ -6665,6 +6675,23 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_new_controls(dapm, msm_int_dapm_widgets,
 				ARRAY_SIZE(msm_int_dapm_widgets));
 
+#ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
+	ret = oplus_add_pa_manager_snd_controls(component);
+	if (ret < 0) {
+		pr_err("%s: add oplus pa mangerr snd controls failed: %d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = oplus_add_analog_pa_manager_dapm(dapm);
+	if (ret < 0) {
+		pr_err("%s: add oplus pa manager dapm failed: %d\n",
+			__func__, ret);
+
+		return ret;
+	}
+#endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
+
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic0");
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic1");
 	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic2");
@@ -7193,6 +7220,11 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	#ifdef OPLUS_BUG_DEBUG
 	pr_warning("%s, %d, Successfully!\n", __func__, __LINE__);
 	#endif /* OPLUS_BUG_DEBUG */
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	pr_info("%s: event_id=%u, version:%s\n", __func__, \
+			OPLUS_AUDIO_EVENTID_AUDIO_KERNEL_ERR, AUDIO_KERNEL_FB_VERSION);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	return 0;
 err:

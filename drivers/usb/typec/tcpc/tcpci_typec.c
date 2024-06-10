@@ -407,9 +407,15 @@ static bool typec_try_exit_norp_src(struct tcpc_device *tcpc)
 
 	return false;
 }
-
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static inline int typec_disable_low_power_mode(struct tcpc_device *tcpc);
+#endif
 static inline int typec_norp_src_attached_entry(struct tcpc_device *tcpc)
 {
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	typec_disable_low_power_mode(tcpc);
+#endif
+
 #ifdef CONFIG_WATER_DETECTION
 #ifdef CONFIG_WD_POLLING_ONLY
 	if (!tcpc->typec_power_ctrl) {
@@ -1704,7 +1710,10 @@ static inline int typec_attached_snk_cc_detach(struct tcpc_device *tcpc)
 			tcpc_enable_timer(tcpc, TYPEC_TIMER_CCDEBOUNCE);
 		else
 			tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
-	}
+	} else {
+		TYPEC_INFO2("Detach_CC (TYPEC)\n");
+		tcpc_enable_timer(tcpc, TYPEC_TIMER_CCDEBOUNCE);
+ 	}
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 	return 0;
 }
@@ -2206,7 +2215,7 @@ static inline int typec_handle_debounce_timeout(struct tcpc_device *tcpc)
 		vbus_valid = tcpci_check_vbus_valid_from_ic(tcpc);
 	else
 		vbus_valid = tcpci_check_vbus_valid(tcpc);
-	if (typec_is_cc_no_res() && vbus_valid
+	if (typec_is_cc_no_res() && tcpci_check_vbus_valid_from_ic(tcpc)
 		&& (tcpc->typec_state == typec_unattached_snk))
 		return typec_norp_src_attached_entry(tcpc);
 #endif
@@ -2560,6 +2569,10 @@ static inline int typec_attached_snk_vbus_absent(struct tcpc_device *tcpc)
 
 static inline int typec_handle_vbus_absent(struct tcpc_device *tcpc)
 {
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	int ret = 0;
+#endif
+
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	if (tcpc->pd_wait_pr_swap_complete) {
 		TYPEC_DBG("[PR.Swap] Ignore vbus_absent\n");
@@ -2582,6 +2595,17 @@ static inline int typec_handle_vbus_absent(struct tcpc_device *tcpc)
 	tcpc_typec_handle_vsafe0v(tcpc);
 #endif /* CONFIG_TCPC_VSAFE0V_DETECT */
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	ret = tcpci_get_cc(tcpc);
+	if (ret < 0)
+		return ret;
+
+	TYPEC_INFO("%s [CC_Alert] %d/%d\n", __func__, typec_get_cc1(), typec_get_cc2());
+
+	if (!typec_is_cc_no_res())
+		tcpc_typec_handle_cc_change(tcpc);
+#endif
+
 	return 0;
 }
 
@@ -2596,6 +2620,12 @@ int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc, int vbus_level)
 		is_sc2150a = true;
 
 	tcpc->typec_reach_vsafe0v = false;
+
+	// open vsafe0.8v irq
+	if (vbus_level >= TCPC_VBUS_VALID)
+		typec_disable_low_power_mode(tcpc);
+	else
+		typec_enter_low_power_mode(tcpc);
 
 #ifdef CONFIG_TYPEC_CHECK_LEGACY_CABLE
 	if (tcpc->typec_legacy_cable) {
@@ -2843,9 +2873,12 @@ static int typec_init_power_off_charge(struct tcpc_device *tcpc)
 	TYPEC_NEW_STATE(typec_unattached_snk);
 	typec_wait_ps_change(tcpc, TYPEC_WAIT_PS_DISABLE);
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#else
 	tcpci_set_cc(tcpc, TYPEC_CC_DRP);
 	typec_enable_low_power_mode(tcpc, TYPEC_CC_DRP);
 	usleep_range(1000, 2000);
+#endif
 
 #ifdef CONFIG_TYPEC_CAP_NORP_SRC
 	if (cc_open) {
@@ -2854,6 +2887,10 @@ static int typec_init_power_off_charge(struct tcpc_device *tcpc)
 	}
 #endif	/* CONFIG_TYPEC_CAP_NORP_SRC */
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	tcpci_set_cc(tcpc, TYPEC_CC_OPEN);
+	usleep_range(20000, 30000);
+#endif
 	tcpci_set_cc(tcpc, TYPEC_CC_RD);
 
 	return 1;

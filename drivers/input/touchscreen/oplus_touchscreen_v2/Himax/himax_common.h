@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #ifndef HIMAX_COMMON_H
@@ -59,8 +59,12 @@ struct himax_proc_operations {
 					   loff_t *pos);
 	size_t (*himax_proc_diag_write)(struct file *file, const char *buff,
 					size_t len, loff_t *pos);
+#if LINUX_VERSION_CODE>= KERNEL_VERSION(5, 10, 0)
+	size_t (*himax_proc_diag_read)(struct seq_file *s, void *v);
+#else
 	size_t (*himax_proc_diag_read)(struct file *file, char *buff, size_t len,
-				       loff_t *pos);
+				loff_t *pos);
+#endif
 	size_t (*himax_proc_DD_debug_read)(struct file *file, char *buf, size_t len,
 					   loff_t *pos);
 	size_t (*himax_proc_DD_debug_write)(struct file *file, const char *buff,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #include <linux/of_gpio.h>
@@ -2521,7 +2521,7 @@ static void himax_read_FW_ver(struct chip_data_hx83112a_nf *chip_info)
 	himax_sense_on(chip_info, 0);
 
 	while (reload_status == 0) {
-		cmd[3] = 0x10;  /* oplus fw id bin address : 0xc014   , 49172    Tp ic address : 0x 10007014*/
+		cmd[3] = 0x10;  /* oppo fw id bin address : 0xc014   , 49172    Tp ic address : 0x 10007014*/
 		cmd[2] = 0x00;
 		cmd[1] = 0x7f;
 		cmd[0] = 0x00;
@@ -2597,7 +2597,7 @@ void himax_read_OPLUS_FW_ver(struct chip_data_hx83112a_nf *chip_info)
 	uint8_t data[4];
 	uint32_t touch_ver = 0;
 
-	cmd[3] = 0x10;  /* oplus fw id bin address : 0xc014    Tp ic address : 0x 10007014*/
+	cmd[3] = 0x10;  /* oppo fw id bin address : 0xc014    Tp ic address : 0x 10007014*/
 	cmd[2] = 0x00;
 	cmd[1] = 0x70;
 	cmd[0] = 0x14;
@@ -2606,7 +2606,7 @@ void himax_read_OPLUS_FW_ver(struct chip_data_hx83112a_nf *chip_info)
 	TPD_INFO("%s : data[0] = 0x%2.2X, data[1] = 0x%2.2X, data[2] = 0x%2.2X, data[3] = 0x%2.2X\n",
 		 __func__, data[0], data[1], data[2], data[3]);
 
-	cmd[3] = 0x10;  /* oplus fw id bin address : 0xc014    Tp ic address : 0x 10007014*/
+	cmd[3] = 0x10;  /* oppo fw id bin address : 0xc014    Tp ic address : 0x 10007014*/
 	cmd[2] = 0x00;
 	cmd[1] = 0x70;
 	cmd[0] = 0x84;
@@ -8367,7 +8367,8 @@ int __init tp_driver_init_hx83112a_nf(void)
 	TPD_INFO("%s is called\n", __func__);
 
 	if (!tp_judge_ic_match(TPD_DEVICE)) {
-		return -1;
+		TPD_INFO("tp_judge_ic_match is fail \n");
+		return 0;
 	}
 
 	/*get_lcd_vendor();*/
@@ -8377,7 +8378,7 @@ int __init tp_driver_init_hx83112a_nf(void)
 
 	if (status < 0) {
 		TPD_INFO("%s, Failed to register SPI driver.\n", __func__);
-		return -EINVAL;
+		return 0;
 	}
 
 	return status;

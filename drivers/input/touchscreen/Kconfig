@@ -1326,7 +1326,8 @@ config TOUCHSCREEN_SYNAPTICS_TCM
 	  module will be called synaptics_tcm.
 
 #source "drivers/input/touchscreen/oppo_touchscreen/Kconfig"
-
+source "drivers/input/touchscreen/st/Kconfig"
+source "drivers/input/touchscreen/focaltech_touch/Kconfig"
 source "drivers/input/touchscreen/synaptics_tcm/Kconfig"
 
 config TOUCHSCREEN_SYNAPTICS_DSX

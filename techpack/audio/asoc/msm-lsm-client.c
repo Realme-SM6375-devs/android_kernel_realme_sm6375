@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/init.h>
 #include <linux/err.h>
@@ -879,6 +879,13 @@ static int msm_lsm_dereg_model(struct snd_pcm_substream *substream,
 
 	if (p_info->model_id != 0 &&
 		p_info->param_type == LSM_DEREG_MULTI_SND_MODEL) {
+
+		if(list_empty(&client->stage_cfg[p_info->stage_idx].sound_models)) {
+				 pr_err("%s: sound_models list is empty \n",
+                                 __func__);
+				 return -EINVAL;
+		}
+
 		list_for_each_entry(sm,
 				   &client->stage_cfg[p_info->stage_idx].sound_models,
 				   list) {
@@ -2379,8 +2386,13 @@ static int msm_lsm_ioctl_compat(struct snd_pcm_substream *substream,
 			prtd->lsm_client->get_param_payload = NULL;
 			goto done;
 		}
+		if (__builtin_uadd_overflow(sizeof(p_info_32), p_info_32.param_size, &size)) {
+			pr_err("%s: param size exceeds limit of %u bytes.\n",
+				__func__, UINT_MAX);
+			err = -EINVAL;
+			goto done;
+		}
 
-		size = sizeof(p_info_32) + p_info_32.param_size;
 		param_info_rsp = kzalloc(size, GFP_KERNEL);
 
 		if (!param_info_rsp) {
@@ -3116,6 +3128,16 @@ static int msm_lsm_close(struct snd_pcm_substream *substream)
 						__func__, ret);
 				prtd->lsm_client->lab_started = false;
 			}
+			#ifndef OPLUS_BUG_STABILITY
+			if (prtd->lsm_client->lab_buffer) {
+				ret = msm_lsm_lab_buffer_alloc(prtd,
+						LAB_BUFFER_DEALLOC);
+				if (ret)
+					dev_err(rtd->dev,
+						"%s: lab buffer dealloc failed ret %d\n",
+						__func__, ret);
+			}
+			#endif /* OPLUS_BUG_STABILITY */
 		}
 
 		if (!atomic_read(&prtd->read_abort)) {
@@ -3135,14 +3157,18 @@ static int msm_lsm_close(struct snd_pcm_substream *substream)
 
 		prtd->lsm_client->started = false;
 	}
+	#ifdef OPLUS_BUG_STABILITY
+	pr_err("%s:: lab_enable= %d \n", __func__, prtd->lsm_client->lab_enable);
 	if (prtd->lsm_client->lab_enable && prtd->lsm_client->lab_buffer) {
 		ret = msm_lsm_lab_buffer_alloc(prtd,
 				LAB_BUFFER_DEALLOC);
+		pr_err("%s:: lab buffer dealloc ret %d\n", __func__, ret);
 		if (ret)
 			dev_err(rtd->dev,
 				"%s: lab buffer dealloc failed ret %d\n",
 				__func__, ret);
 	}
+	#endif /* OPLUS_BUG_STABILITY */
 	/*
 	 * De-register existing sound models
 	 * to free SM and CAL buffer, even if

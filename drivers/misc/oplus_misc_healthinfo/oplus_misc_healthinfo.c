@@ -175,12 +175,12 @@ static ssize_t proc_misc_healthinfo_write(struct file *file, const char __user *
 	int tmp = 0;
 	int i = 0, j = 0;
 
-	mutex_lock(&omhp->my_lock);
-
 	if (!omhp || count >= sizeof(buf)) {
 		OMH_INFO("! cd or count over size");
-		goto OUT;
+		return -1;
 	}
+
+	mutex_lock(&omhp->my_lock);
 
 	if (copy_from_user(buf, buffer, count)) {
 		OMH_INFO("write proc input error.");
@@ -246,7 +246,7 @@ static int oplus_misc_healthinfo_init_proc(struct oplus_misc_healthinfo_para *om
 	return ret;
 }
 
-static oplus_misc_healthinfo_parse_dt(struct device *dev, struct oplus_misc_healthinfo_para *omhp)
+static int oplus_misc_healthinfo_parse_dt(struct device *dev, struct oplus_misc_healthinfo_para *omhp)
 {
 	struct device_node *dn = dev->of_node;
 	if (!dn) {

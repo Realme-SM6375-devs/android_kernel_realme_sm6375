@@ -206,7 +206,6 @@ int cam_flash_i2c_power_ops(struct cam_flash_ctrl *fctrl,
 		fctrl->is_regulator_enabled = true;
 	} else if ((!regulator_enable) &&
 		(fctrl->is_regulator_enabled == true)) {
-
 		rc = cam_sensor_util_power_down(power_info, soc_info);
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 		if (!fctrl->pmic_pm8008) {
@@ -214,7 +213,8 @@ int cam_flash_i2c_power_ops(struct cam_flash_ctrl *fctrl,
 		}
 #endif /* OPLUS_FEATURE_CAMERA_COMMON*/
 		if (rc) {
-			CAM_ERR(CAM_FLASH, "power down the core is failed:%d", rc);
+			CAM_ERR(CAM_FLASH, "power down the core is failed:%d",
+				rc);
 			return rc;
 		}
 		camera_io_release(&(fctrl->io_master_info));
@@ -1749,6 +1749,7 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 			CAM_DBG(CAM_FLASH,
 				"FLASH_CMD_TYPE op:%d, req:%lld",
 				flash_data->opcode, csl_packet->header.request_id);
+
 			if (flash_data->opcode ==
 				CAMERA_SENSOR_FLASH_OP_FIREDURATION) {
 				add_req.trigger_eof = true;

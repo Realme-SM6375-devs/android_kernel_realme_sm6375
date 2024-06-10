@@ -78,6 +78,7 @@
 struct pn544_dev    {
     wait_queue_head_t   read_wq;
     struct mutex        read_mutex;
+    struct mutex        write_mutex;
     //#ifdef VENDOR_EDIT
     //Add for: Add mutex to prevent re-init of dwp_onoff_sema
     struct mutex        dwp_mutex;
@@ -111,9 +112,11 @@ struct pn544_dev    {
     unsigned long       dwpLinkUpdateStat; /*DWP link update status*/
     struct workqueue_struct *pSecureTimerCbWq;
     struct work_struct wq_task;
-    /* read buffer*/
     size_t kbuflen;
-    u8 *kbuf;
+    /* read buffer*/
+    u8 *read_kbuf;
+    /* write buffer*/
+    u8 *write_kbuf;
 };
 /* HiKey Compilation fix */
 #ifndef HiKey_620_COMPILATION_FIX
@@ -264,7 +267,7 @@ static ssize_t pn544_dev_read(struct file *filp, char __user *buf,
         }
     }
 
-    tmp = pn544_dev->kbuf;
+    tmp = pn544_dev->read_kbuf;
     if (!tmp) {
         pr_info("%s: device doesn't exist anymore\n", __func__);
         ret = -ENODEV;
@@ -313,8 +316,8 @@ static ssize_t pn544_dev_write(struct file *filp, const char __user *buf,
         size_t count, loff_t *offset)
 {
     struct pn544_dev  *pn544_dev;
-    char *tmp = NULL;
-    int ret;
+    //char *tmp = NULL;
+    int ret = 0;
 
     pn544_dev = filp->private_data;
 
@@ -324,16 +327,23 @@ static ssize_t pn544_dev_write(struct file *filp, const char __user *buf,
         goto out;
     }
 
-    tmp = memdup_user(buf, count);
-    if (IS_ERR(tmp)) {
+    //tmp = memdup_user(buf, count);
+    mutex_lock(&pn544_dev->write_mutex);
+    if (copy_from_user(pn544_dev->write_kbuf, buf, count)) {
+        pr_err("%s: failed to copy from user space\n", __func__);
+        mutex_unlock(&pn544_dev->write_mutex);
+        return -EFAULT;
+    }
+    /*if (IS_ERR(tmp)) {
         pr_info("%s: memdup_user failed\n", __func__);
         ret = PTR_ERR(tmp);
         goto out;
-    }
+    }*/
 
     //pr_debug("%s : writing %zu bytes.\n", __func__, count);
     /* Write data */
-    ret = i2c_master_send(pn544_dev->client, tmp, count);
+    //ret = i2c_master_send(pn544_dev->client, tmp, count);
+    ret = i2c_master_send(pn544_dev->client, pn544_dev->write_kbuf, count);
     if (ret != count) {
         pr_err("%s : i2c_master_send returned %d\n", __func__, ret);
         ret = -EIO;
@@ -342,7 +352,8 @@ static ssize_t pn544_dev_write(struct file *filp, const char __user *buf,
     /* pn544 seems to be slow in handling I2C write requests
      * so add 1ms delay after I2C send oparation */
     udelay(1000);
-    kfree(tmp);
+    mutex_unlock(&pn544_dev->write_mutex);
+    //kfree(tmp);
 out:
     return ret;
 }
@@ -1648,9 +1659,18 @@ static int pn544_probe(struct i2c_client *client,
     }
 
     pn544_dev->kbuflen = MAX_BUFFER_SIZE;
-    pn544_dev->kbuf = kzalloc(MAX_BUFFER_SIZE, GFP_KERNEL);
-    if (!pn544_dev->kbuf) {
-        pr_err("failed to allocate memory for pn544_dev->kbuf\n");
+    pn544_dev->read_kbuf = kzalloc(MAX_BUFFER_SIZE, GFP_DMA);
+    if (!pn544_dev->read_kbuf) {
+        pr_err("failed to allocate memory for pn544_dev->read_kbuf\n");
+        ret = -ENOMEM;
+        goto err_free_dev;
+    }
+
+    pn544_dev->write_kbuf = kzalloc(MAX_BUFFER_SIZE, GFP_DMA);
+    if (!pn544_dev->write_kbuf) {
+        pr_err("failed to allocate memory for pn544_dev->write_kbuf\n");
+        /*free read buf*/
+        kfree(pn544_dev->read_kbuf);
         ret = -ENOMEM;
         goto err_free_dev;
     }
@@ -1702,6 +1722,7 @@ static int pn544_probe(struct i2c_client *client,
     /* init mutex and queues */
     init_waitqueue_head(&pn544_dev->read_wq);
     mutex_init(&pn544_dev->read_mutex);
+    mutex_init(&pn544_dev->write_mutex);
     //#ifdef VENDOR_EDIT
     //Add for: Add mutex to prevent re-init of dwp_onoff_sema
     mutex_init(&pn544_dev->dwp_mutex);
@@ -1785,6 +1806,7 @@ static int pn544_probe(struct i2c_client *client,
     misc_deregister(&pn544_dev->pn544_device);
     err_misc_register:
     mutex_destroy(&pn544_dev->read_mutex);
+    mutex_destroy(&pn544_dev->write_mutex);
     //#ifdef VENDOR_EDIT
     //Add for: Add mutex to prevent re-init of dwp_onoff_sema
     mutex_destroy(&pn544_dev->dwp_mutex);
@@ -1806,7 +1828,8 @@ static int pn544_probe(struct i2c_client *client,
     err_iso_rst:
     gpio_free(platform_data->iso_rst_gpio);
 #endif
-    kfree(pn544_dev->kbuf);
+    kfree(pn544_dev->read_kbuf);
+    kfree(pn544_dev->write_kbuf);
 err_free_dev:
     kfree(pn544_dev);
     return ret;
@@ -1820,6 +1843,7 @@ static int pn544_remove(struct i2c_client *client)
     free_irq(client->irq, pn544_dev);
     misc_deregister(&pn544_dev->pn544_device);
     mutex_destroy(&pn544_dev->read_mutex);
+    mutex_destroy(&pn544_dev->write_mutex);
     //#ifdef VENDOR_EDIT
     //Add for: Add mutex to prevent re-init of dwp_onoff_sema
     mutex_destroy(&pn544_dev->dwp_mutex);
@@ -1837,7 +1861,8 @@ static int pn544_remove(struct i2c_client *client)
 
     if (pn544_dev->firm_gpio)
         gpio_free(pn544_dev->firm_gpio);
-    kfree(pn544_dev->kbuf);
+    kfree(pn544_dev->read_kbuf);
+    kfree(pn544_dev->write_kbuf);
     kfree(pn544_dev);
 
     return 0;

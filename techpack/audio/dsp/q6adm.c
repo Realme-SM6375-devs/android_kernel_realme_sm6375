@@ -27,8 +27,8 @@
 #endif /* OPLUS_FEATURE_AUDIODETECT */
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 #include "feedback/oplus_audio_kernel_fb.h"
+#include "dsp/oplus_lvve_err_fb.h"
 #endif
-
 
 #define TIMEOUT_MS 1000
 
@@ -358,6 +358,10 @@ int adm_set_auddet_enable_param(int port_id, uint8_t val)
 	int port_idx = adm_validate_and_get_port_index(port_id);
 
 	pr_info("%s, portid %d, enable %d\n", __func__, port_id, val);
+
+	if (port_idx < 0) {
+		return rc;
+	}
 
 	memset(&param_hdr, 0, sizeof(param_hdr));
 		param_hdr.module_id = MUTE_DETECT_MODULE_ID;
@@ -1201,18 +1205,13 @@ int adm_apr_send_pkt(void *data, wait_queue_head_t *wait,
 			pr_err("%s: DSP returned error[%s]\n", __func__,
 				adsp_err_get_err_str(atomic_read(copp_stat)));
 			ret = adsp_err_get_lnx_err_code(atomic_read(copp_stat));
-#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-			if (apr_get_q6_state() == APR_SUBSYS_LOADED) {
-				ratelimited_fb("payload@@q6adm.c:DSP returned error[%s],ret=%d", \
-						adsp_err_get_err_str(atomic_read(copp_stat)), ret);
-			}
-#endif
 		} else	if (!ret) {
 			pr_err_ratelimited("%s: request timedout\n",
 				__func__);
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 			if (apr_get_q6_state() == APR_SUBSYS_LOADED) {
-				ratelimited_fb("payload@@q6adm.c:request timedout,ret=%d", ret);
+				ratelimited_fb("payload@@q6adm.c:request timedout,ret=%d,port_idx=%d,copp_idx=%d,opcode=%d", \
+						ret, port_idx, copp_idx, opcode);
 			}
 #endif
 			ret = -ETIMEDOUT;
@@ -1223,7 +1222,8 @@ int adm_apr_send_pkt(void *data, wait_queue_head_t *wait,
 		pr_err("%s: packet not transmitted\n", __func__);
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 		if (apr_get_q6_state() == APR_SUBSYS_LOADED) {
-			ratelimited_fb("payload@@q6adm.c:packet not transmitted,ret=%d", ret);
+			ratelimited_fb("payload@@q6adm.c:packet not transmitted,ret=%d,port_idx=%d,copp_idx=%d,opcode=%d", \
+				ret, port_idx, copp_idx, opcode);
 		}
 #endif
 		/* apr_send_pkt can return 0 when nothing is transmitted */
@@ -1849,7 +1849,12 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 {
 	uint32_t *payload;
 	int port_idx, copp_idx, idx, client_id;
+#ifndef OPLUS_ARCH_EXTENDS
 	uint32_t num_modules;
+#else
+	/* Apply CR#3438425 to Resolve mem corruption in adm cb */
+	uint32_t num_modules;
+#endif /*OPLUS_ARCH_EXTENDS*/
 	int ret;
 	int payload_size = 0, i = 0;
 	struct msm_adsp_event_data *pp_event_package = NULL;
@@ -1894,16 +1899,11 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 		if (data->opcode == APR_BASIC_RSP_RESULT) {
 			pr_debug("%s: APR_BASIC_RSP_RESULT id 0x%x\n",
 				__func__, payload[0]);
-
-			if (!((client_id != ADM_CLIENT_ID_SOURCE_TRACKING) &&
-			     ((payload[0] == ADM_CMD_SET_PP_PARAMS_V5) ||
-			      (payload[0] == ADM_CMD_SET_PP_PARAMS_V6)))) {
-				if (data->payload_size <
-						(2 * sizeof(uint32_t))) {
-					pr_err("%s: Invalid payload size %d\n",
-						__func__, data->payload_size);
-					return 0;
-				}
+			if (data->payload_size <
+					(2 * sizeof(uint32_t))) {
+				pr_err("%s: Invalid payload size %d\n",
+					__func__, data->payload_size);
+				return 0;
 			}
 
 			if (payload[1] != 0) {
@@ -4470,6 +4470,18 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 		return -EINVAL;
 	}
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	if ((atomic_read(&this_adm.copp.app_type[port_idx][copp_idx]) == VOICE_OR_VOIP_APP_TYPE) && \
+		((atomic_read(&this_adm.copp.topology[port_idx][copp_idx]) == VOICE_TOPOLOGY_LVVEFQ_TX_SM) || \
+			(atomic_read(&this_adm.copp.topology[port_idx][copp_idx]) == VOICE_TOPOLOGY_LVVEFQ_TX_DM) || \
+			(atomic_read(&this_adm.copp.topology[port_idx][copp_idx]) == VOICE_TOPOLOGY_LVVEFQ_TX_QM) || \
+			(atomic_read(&this_adm.copp.topology[port_idx][copp_idx]) == VOICE_TOPOLOGY_LVVEFQ_RX) || \
+			(atomic_read(&this_adm.copp.topology[port_idx][copp_idx]) == AUDIO_TOPOLOGY_LVVEFQ_RX))
+		) {
+		oplus_adm_get_lvve_err_fb(port_id, copp_idx);
+	}
+#endif
+
 	port_channel_map[port_idx].set_channel_map = false;
 	app_type = atomic_read(&this_adm.copp.app_type[port_idx][copp_idx]);
 	if (this_adm.copp.adm_delay[port_idx][copp_idx] && perf_mode
@@ -6404,6 +6416,10 @@ static ssize_t pb_det_read(struct file *file,
 	int ret = 0;
 
 	str = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!str) {
+		pr_err("Allocation failed\n");
+		return -ENOMEM;
+	}
 
 	//ret = adm_get_all_mute_pp_param();
 

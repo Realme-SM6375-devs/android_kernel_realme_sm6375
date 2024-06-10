@@ -41,7 +41,6 @@
 #define CAM_ISP_CTX_CFG_MAX                     25
 #endif /*OPLUS_FEATURE_CAMERA_COMMON*/
 
-
 /*
  * Maximum entries in state monitoring array for error logging
  */

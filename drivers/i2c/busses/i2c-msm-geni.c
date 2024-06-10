@@ -30,6 +30,7 @@
 #include <soc/oplus/system/boot_mode.h>
 #endif /* OPLUS_FEATURE_CHG_BASIC */
 
+#define SE_GENI_CFG_REG68		(0x210)
 #define SE_I2C_TX_TRANS_LEN		(0x26C)
 #define SE_I2C_RX_TRANS_LEN		(0x270)
 #define SE_I2C_SCL_COUNTERS		(0x278)
@@ -79,7 +80,7 @@
 
 #define I2C_TIMEOUT_SAFETY_COEFFICIENT	10
 
-#define I2C_TIMEOUT_MIN_USEC	500000
+#define I2C_TIMEOUT_MIN_USEC	3000000
 
 #define MAX_SE	20
 
@@ -144,7 +145,7 @@ struct geni_i2c_dev {
 	atomic_t is_xfer_in_progress; /* Used to maintain xfer inprogress status */
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	struct delayed_work i2c_gpio_reset_work;
-#endif /* OPLUS_FEATURE_CHG_BASIC */
+#endif
 };
 
 static struct geni_i2c_dev *gi2c_dev_dbg[MAX_SE];
@@ -253,6 +254,35 @@ err_ret:
 	gi2c->err = gi2c_log[err].err;
 }
 
+static void do_reg68_war_for_rtl_se(struct geni_i2c_dev *gi2c)
+{
+	u32 status;
+
+	//Add REG68 WAR if stretch bit is set
+	status = geni_read_reg_nolog(gi2c->base, SE_GENI_M_CMD0);
+	GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+		"%s: SE_GENI_M_CMD0:0x%x\n", __func__,  status);
+
+	//BIT(2) - STOP/STRETCH set then configure REG68 register
+	if ((status & 0x4) && gi2c->is_i2c_rtl_based) {
+		status = geni_read_reg_nolog(gi2c->base, SE_GENI_CFG_REG68);
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+			"%s: Before WAR REG68:0x%x\n", __func__, status);
+		if (status & 0x20) {
+			//Toggle Bit#4, Bit#5 of REG68 to disable/enable stretch
+			geni_write_reg(0x00100110, gi2c->base,
+							SE_GENI_CFG_REG68);
+		} else {
+			//Restore FW to suggested value i.e. 0x00100120
+			geni_write_reg(0x00100120, gi2c->base,
+							SE_GENI_CFG_REG68);
+		}
+		status = geni_read_reg_nolog(gi2c->base, SE_GENI_CFG_REG68);
+		GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
+				"%s: After WAR REG68:0x%x\n", __func__, status);
+	}
+}
+
 static int do_pending_cancel(struct geni_i2c_dev *gi2c)
 {
 	int timeout = 0;
@@ -310,11 +340,18 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 	if (gi2c->se_mode == UNINITIALIZED) {
 		int proto = get_se_proto(gi2c->base);
 		u32 se_mode;
+		int ret = 0;
 
 		if (proto != I2C) {
 			dev_err(gi2c->dev, "Invalid proto %d\n", proto);
-			if (!gi2c->is_le_vm)
-				se_geni_resources_off(&gi2c->i2c_rsc);
+			if (!gi2c->is_le_vm) {
+				ret = se_geni_resources_off(&gi2c->i2c_rsc);
+				if (ret) {
+					dev_err(gi2c->dev, "%s: resource_off Error ret %d\n",
+						__func__, ret);
+					return ret;
+				}
+			}
 			return -ENXIO;
 		}
 
@@ -358,6 +395,9 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 		GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
 		goto irqret;
 	}
+	GENI_SE_ERR(gi2c->ipcl, false, gi2c->dev,
+		    "m_stat:0x%x rx_st:0x%x dm_tx_st:0x%x dm_rx_st:0x%x dma:0x%x\n",
+		    m_stat, rx_st, dm_tx_st, dm_rx_st, dma);
 
 	if ((m_stat & M_CMD_FAILURE_EN) ||
 		    (dm_rx_st & (DM_I2C_CB_ERR)) ||
@@ -479,11 +519,11 @@ static void gi2c_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb_str,
 			geni_i2c_err(gi2c, I2C_BUS_PROTO);
 		if (m_stat & M_GP_IRQ_4_EN)
 			geni_i2c_err(gi2c, I2C_ARB_LOST);
-		complete(&gi2c->xfer);
 		break;
 	default:
 		break;
 	}
+	complete(&gi2c->xfer);
 	if (cb_str->cb_event != MSM_GPI_QUP_NOTIFY)
 		GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 				"GSI QN err:0x%x, status:0x%x, err:%d\n",
@@ -1058,6 +1098,7 @@ geni_i2c_gsi_xfer_out:
 #define MAX_RESET_COUNT			10
 #define I2C_MAX_ERROR_COUNT 		2
 #define FG_DEVICE_ADDR			0x55
+#define BQ25890H_DEVICE_ADDR		0x6a
 #define DEVICE_TYPE_ZY0602		3
 static bool (*poplus_vooc_get_fastchg_started)(void);
 static bool (*poplus_vooc_get_fastchg_ing)(void);
@@ -1131,6 +1172,7 @@ static bool oplus_vooc_get_fastchg_ing(void)
 
 static bool i2c_reset_processing = false;
 static int reset_count = 0;
+static atomic_t i2c_reset_status;
 
 #define I2C_RST_DELAY_CNT	250
 #define I2C_RST_MAX_COUNT       5
@@ -1143,8 +1185,10 @@ static void oplus_i2c_gpio_reset_work(struct work_struct *work)
 	struct geni_i2c_dev *gi2c = container_of(dwork,
 					struct geni_i2c_dev, i2c_gpio_reset_work);
 
-	if (gi2c == NULL)
+	if (gi2c == NULL) {
+		pr_err("gi2c dev is NULL");
 		return;
+	}
 
 	if ((boot_mode != MSM_BOOT_MODE__NORMAL)
 			&& (boot_mode != MSM_BOOT_MODE__RECOVERY)
@@ -1212,9 +1256,11 @@ static void oplus_i2c_gpio_reset_work(struct work_struct *work)
 	i2c_reset_processing = false;
 	err_count = 0; /*clear the err_count after the GPIO reset is completed.*/
 	dev_err(gi2c->dev, "%s: gpio reset successful id:%d\n", __func__, gi2c->adap.nr);
+	atomic_set(&i2c_reset_status, 0);
 	return;
 
 err:
+	atomic_set(&i2c_reset_status, 0);
 	i2c_reset_processing = false;
 }
 
@@ -1231,10 +1277,15 @@ static bool fg_need_i2c_reset(struct geni_i2c_dev *gi2c, int mseconds)
 		return false;
 	}
 
-	dev_err(gi2c->dev, "%s, err_count = %d, device_type = %d\n",
-		__func__, err_count, oplus_get_fg_device_type());
+	dev_err(gi2c->dev, "%s, err_count = %d, device_type = %d i2c_reset_status=%d\n",
+		__func__, err_count, oplus_get_fg_device_type(), atomic_read(&i2c_reset_status));
+
+	if (atomic_read(&i2c_reset_status))
+		return false;
+
 	if (oplus_get_fg_device_type() == DEVICE_TYPE_ZY0602) {
 		if (!i2c_reset_processing && (err_count >= I2C_MAX_ERROR_COUNT )) {
+			atomic_set(&i2c_reset_status, 1);
 			dev_err(gi2c->dev, "%s start i2c_gpio_reset_work after %d ms\n", __func__, mseconds);
 			cancel_delayed_work(&gi2c->i2c_gpio_reset_work);
 			schedule_delayed_work(&gi2c->i2c_gpio_reset_work, msecs_to_jiffies(mseconds));
@@ -1300,6 +1351,17 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			return ret; //Don't perform xfer is cancel failed
 		}
 	}
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+		for (i = 0; i < num; i++) {
+			if (msgs[i].addr == FG_DEVICE_ADDR || msgs[i].addr == BQ25890H_DEVICE_ADDR) {
+				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
+						"%s:IO lines not in good state, need i2c reset.\n", __func__);
+				fg_need_i2c_reset(gi2c, I2C_GPIO_RESET_DELAY_MS);
+				break;
+			}
+		}
+#endif
 
 	GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev,
 		    "n:%d addr:0x%x\n", num, msgs[0].addr);
@@ -1430,7 +1492,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 				GENI_SE_DBG(gi2c->ipcl, true, gi2c->dev,
 					"%s: IO lines not in good state\n", __func__);
 #ifdef OPLUS_FEATURE_CHG_BASIC
-				if (msgs[i].addr == FG_DEVICE_ADDR) {
+				if (msgs[i].addr == FG_DEVICE_ADDR || msgs[i].addr == BQ25890H_DEVICE_ADDR) {
                                         GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
                                                 "%s:IO lines not in good state, need i2c reset.\n", __func__);
                                         fg_need_i2c_reset(gi2c, I2C_GPIO_RESET_DELAY_MS);
@@ -1482,7 +1544,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 		ret = gi2c->err;
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /* BSP.CHG.Basic, 2021/11/02, Add for gauge i2c reset */
-		if (msgs[i].addr == FG_DEVICE_ADDR) {
+		if (msgs[i].addr == FG_DEVICE_ADDR || msgs[i].addr == BQ25890H_DEVICE_ADDR) {
 			if (gi2c->err) {
 				GENI_SE_ERR(gi2c->ipcl, true, gi2c->dev,
 					"i2c error :%d need i2c reset.\n", gi2c->err);
@@ -1490,6 +1552,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 			} else {
 				err_count = 0;
 				reset_count = 0;
+				atomic_set(&i2c_reset_status, 0);
 			}
 		}
 #endif /* OPLUS_FEATURE_CHG_BASIC */
@@ -1686,6 +1749,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No pullup config specified\n");
 	}
 #endif /* OPLUS_FEATURE_CHG_BASIC */
+
 	if (of_property_read_u32(pdev->dev.of_node, "qcom,clk-freq-out",
 				&gi2c->i2c_rsc.clk_freq_out))
 		gi2c->i2c_rsc.clk_freq_out = KHz(400);
@@ -1800,6 +1864,7 @@ static int geni_i2c_resume_early(struct device *device)
 #if IS_ENABLED(CONFIG_PM)
 static int geni_i2c_runtime_suspend(struct device *dev)
 {
+	int ret = 0;
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
 
 	if (gi2c->se_mode == FIFO_SE_DMA)
@@ -1812,12 +1877,16 @@ static int geni_i2c_runtime_suspend(struct device *dev)
 			gi2c->first_resume = false;
 	} else if (gi2c->is_shared) {
 		/* Do not unconfigure GPIOs if shared se */
-		se_geni_clks_off(&gi2c->i2c_rsc);
+		ret = se_geni_clks_off(&gi2c->i2c_rsc);
+		if (ret)
+			dev_err(dev, "%s: clks_off Error ret %d\n", __func__, ret);
 	} else {
-		se_geni_resources_off(&gi2c->i2c_rsc);
+		ret = se_geni_resources_off(&gi2c->i2c_rsc);
+		if (ret)
+			dev_err(dev, "%s: resource_off Error ret %d\n", __func__, ret);
 	}
 	GENI_SE_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n", __func__);
-	return 0;
+	return ret;
 }
 
 static int geni_i2c_runtime_resume(struct device *dev)
@@ -1829,7 +1898,7 @@ static int geni_i2c_runtime_resume(struct device *dev)
 		char ipc_name[I2C_NAME_SIZE];
 
 		snprintf(ipc_name, I2C_NAME_SIZE, "%s", dev_name(gi2c->dev));
-		gi2c->ipcl = ipc_log_context_create(2, ipc_name, 0);
+		gi2c->ipcl = ipc_log_context_create(20, ipc_name, 0);
 	}
 
 	if (!gi2c->is_le_vm) {

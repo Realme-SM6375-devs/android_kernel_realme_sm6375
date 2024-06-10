@@ -25,6 +25,9 @@
 #include "adsp_err.h"
 #include <dsp/voice_mhi.h>
 #include <soc/qcom/secure_buffer.h>
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include "dsp/oplus_lvve_err_fb.h"
+#endif
 
 #define TIMEOUT_MS 1000
 
@@ -5315,6 +5318,12 @@ static int voice_destroy_vocproc(struct voice_data *v)
 		return -EINVAL;
 	}
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	if (v->voc_state == VOC_RUN) {
+		oplus_voice_get_lvve_err_fb(apr_cvp, v);
+	}
+#endif
+
 	mvm_handle = voice_get_mvm_handle(v);
 	cvp_handle = voice_get_cvp_handle(v);
 
@@ -6912,6 +6921,7 @@ int voc_set_device_config(uint32_t session_id, uint8_t path_dir,
 			  struct media_format_info *finfo)
 {
 	struct voice_data *v = voice_get_session(session_id);
+	int ret = 0;
 
 	if (v == NULL) {
 		pr_err("%s: Invalid session_id 0x%x\n", __func__, session_id);
@@ -6943,12 +6953,12 @@ int voc_set_device_config(uint32_t session_id, uint8_t path_dir,
 		break;
 	default:
 		pr_err("%s: Invalid path_dir %d\n", __func__, path_dir);
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
 	mutex_unlock(&v->lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(voc_set_device_config);
 
@@ -8537,6 +8547,23 @@ static int32_t qdsp_cvp_callback(struct apr_client_data *data, void *priv)
 		rtac_make_voice_callback(RTAC_CVP, data->payload,
 			data->payload_size);
 #endif /* OPLUS_FEATURE_AUDIODETECT */
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		if ((LVVEFQ_RX_MODULE_ID == ptr[1]) && (INSTANCE_ID_0 == ptr[2]) && (VOICE_PARAM_LVVEFQ_GET_ERR == ptr[3])) {
+			 /* ptr[4] is return payload bytes, ptr[5] is the start of payload data */
+			if ((ptr[4] > 0) && (data->payload_size > (5 * sizeof(uint32_t)))) {
+				oplus_copy_voice_err_result(MSM_AFE_PORT_TYPE_RX, (void *)(ptr + 5), data->payload_size - (5 * sizeof(uint32_t)));
+			}
+		} else if ((LVVEFQ_TX_MODULE_ID == ptr[1]) && (0x8000 == ptr[2]) && (VOICE_PARAM_LVVEFQ_GET_ERR == ptr[3])) {
+			if ((ptr[4] > 0) && (data->payload_size > (5 * sizeof(uint32_t)))) {
+				oplus_copy_voice_err_result(MSM_AFE_PORT_TYPE_TX, (void *)(ptr + 5), data->payload_size - (5 * sizeof(uint32_t)));
+			}
+		}
+#endif
+
+#if defined OPLUS_FEATURE_AUDIODETECT || defined CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+		wake_up(&v->cvp_wait);
+#endif
 	} else if (data->opcode == VSS_IVPCM_EVT_NOTIFY_V2) {
 		if ((data->payload != NULL) && data->payload_size ==
 		    sizeof(struct vss_ivpcm_evt_notify_v2_t) &&
@@ -10189,15 +10216,20 @@ int voice_get_cvp_param(void)
 			apr_cvp = common.apr_q6_cvp;
 			if (!apr_cvp) {
 				pr_err("%s: apr_cvp is NULL\n", __func__);
-				return -EINVAL;
+				/* release common_lock when return. */
+				ret = -EINVAL;
+				goto done;
 			}
 			pr_info("%s: active voice session = %d\n", __func__, v->session_id);
 
 			pkt_size = sizeof(struct vss_icommon_cmd_get_param);
 
 			get_param = kzalloc(pkt_size, GFP_KERNEL);
-			if (!get_param)
-				return -ENOMEM;
+			if (!get_param) {
+				/* release common_lock when return. */
+				ret = -ENOMEM;
+				goto done;
+			}
 
 			pr_info("%s: pkt_size = %d\n", __func__, pkt_size);
 

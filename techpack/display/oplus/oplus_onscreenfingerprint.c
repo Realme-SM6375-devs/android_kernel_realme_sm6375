@@ -454,6 +454,9 @@ int dsi_panel_parse_oplus_config(struct dsi_panel *panel)
 {
 	struct dsi_parser_utils *utils = &panel->utils;
 	int ret = 0;
+	const char *regs = NULL;
+	u32 len = 0;
+	int i = 0;
 
 	dsi_panel_parse_oplus_fod_config(panel);
 	dsi_panel_parse_oplus_backlight_remapping_config(panel);
@@ -562,6 +565,38 @@ int dsi_panel_parse_oplus_config(struct dsi_panel *panel)
 
 	pr_err("53h-control is %s\n",
 		 (panel->oplus_priv.disable_53h_control ? "disabled" : "enabled"));
+
+	ret = utils->read_u32(utils->data, "oplus,dsi-serial-number-index",
+				 &panel->oplus_ser.serial_number_index);
+	if (ret) {
+		pr_info("[%s] failed to get oplus,dsi-serial-number-index\n", __func__);
+		/* Default sync start index is set 0 */
+		panel->oplus_ser.serial_number_index = 10;
+	}
+
+	regs = utils->get_property(utils->data, "oplus,dsi-serial-number-multi-regs",
+				&len);
+	if (!regs) {
+		pr_err("[%s] failed to get oplus,dsi-serial-number-multi-regs\n", __func__);
+	} else {
+		panel->oplus_ser.serial_number_multi_regs =
+			kzalloc((sizeof(u32) * len), GFP_KERNEL);
+		if (!panel->oplus_ser.serial_number_multi_regs)
+			return -EINVAL;
+		for (i = 0; i < len; i++) {
+			panel->oplus_ser.serial_number_multi_regs[i] = regs[i];
+		}
+	}
+
+	panel->oplus_ser.is_switch_page = utils->read_bool(utils->data,
+			"oplus,dsi-serial-number-switch-page");
+	DSI_INFO("oplus,dsi-serial-number-switch-page: %s", panel->oplus_ser.is_switch_page ? "true" : "false");
+
+	panel->oplus_priv.dimming_control = utils->read_bool(utils->data,
+							"oplus,dimming-control");
+
+	pr_err("dimming-control is %s\n",
+		 (panel->oplus_priv.dimming_control ? "true" : "false"));
 
 	return 0;
 }
@@ -896,11 +931,16 @@ int oplus_display_panel_notify_fp_press(void *data)
 
 	pr_info("hidl notify fingerpress %s\n", onscreenfp_status ? "on" : "off");
 
-	if ((oplus_get_panel_brightness() == 0) && onscreenfp_status) {
-		pr_info("notify fingerpress return as screen is off\n");
-		return 0;
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+	if (display->panel->oplus_priv.is_aod_ramless) {
+		if ((oplus_get_panel_brightness() == 0) && onscreenfp_status) {
+			pr_info("notify fingerpress return as screen is off\n");
+			return 0;
+		}
 	}
-		if (OPLUS_DISPLAY_AOD_SCENE == get_oplus_display_scene() || oplus_display_mode == 0) {
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
+
+	if (OPLUS_DISPLAY_AOD_SCENE == get_oplus_display_scene() || oplus_display_mode == 0) {
 		if (onscreenfp_status) {
 			on_time = ktime_get();
 		} else {
@@ -967,6 +1007,7 @@ int oplus_display_panel_notify_fp_press(void *data)
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
 	if (display->panel->oplus_priv.is_aod_ramless) {
 		struct drm_display_mode *set_mode = NULL;
+		int ret;
 
 		if (oplus_display_mode == 2)
 			goto error;
@@ -993,7 +1034,9 @@ int oplus_display_panel_notify_fp_press(void *data)
 
 		if (mode_changed) {
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			ret = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (ret < 0)
+				pr_err("Failed to set mode for CRTC: %d\n", ret);
 		}
 
 		/* wake_up(&oplus_aod_wait); */

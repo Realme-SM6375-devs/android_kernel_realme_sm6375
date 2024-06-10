@@ -24,6 +24,7 @@
 #include "dsi_pwr.h"
 #include "dsi_catalog.h"
 #include "dsi_panel.h"
+#include "oplus_display_private_api.h"
 
 #include "sde_dbg.h"
 
@@ -1622,6 +1623,7 @@ static void print_cmd_desc(struct dsi_ctrl *dsi_ctrl, const struct mipi_dsi_msg 
 	DSI_CTRL_ERR(dsi_ctrl, "%s\n", buf);
 }
 extern int dsi_cmd_log_enable;
+extern int oplus_dsi_log_type;
 #endif /* OPLUS_BUG_STABILITY */
 
 static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
@@ -1638,7 +1640,7 @@ static int dsi_message_tx(struct dsi_ctrl *dsi_ctrl,
 	u8 *cmdbuf;
 
 #ifdef OPLUS_BUG_STABILITY
-	if (dsi_cmd_log_enable)
+	if (dsi_cmd_log_enable || (OPLUS_DEBUG_LOG_CMD & oplus_dsi_log_type))
 		print_cmd_desc(dsi_ctrl, msg);
 #endif /* OPLUS_BUG_STABILITY */
 

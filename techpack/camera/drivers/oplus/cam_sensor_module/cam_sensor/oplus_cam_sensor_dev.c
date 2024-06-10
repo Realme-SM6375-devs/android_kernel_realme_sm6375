@@ -11,6 +11,8 @@
 
 #include "init_camera_setting/s5khm6_seq_settings.h"
 #include "init_camera_setting/s5khm6_a303_seq_settings.h"
+#include "init_camera_setting/s5khm6_a303_seq_no_izoom_settings.h"
+
 
 #define S5KGM1ST_SENSOR_ID		0xF8D1
 #define HI846_SENSOR_ID			0x4608
@@ -200,6 +202,7 @@ int sensor_start_thread(void *arg) {
 	struct cam_sensor_i2c_reg_setting_array *ptr;
 	struct hm6_reg_settings *pSettings;
 	struct hm6_a303_reg_settings *pA303Settings;
+	struct hm6_a303_no_izoom_reg_settings *pA303NoIZoomSettings;
 
 	if (!s_ctrl)
 	{
@@ -210,6 +213,7 @@ int sensor_start_thread(void *arg) {
 	ptr = NULL;
 	pSettings = NULL;
 	pA303Settings = NULL;
+	pA303NoIZoomSettings = NULL;
 
 	//power up for sensor
 	mutex_lock(&(s_ctrl->sensor_power_state_mutex));
@@ -323,8 +327,15 @@ int sensor_start_thread(void *arg) {
 				CAM_INFO(CAM_SENSOR, "s5khm6_setting");
 				break;
 			case S5KHM6_A303_SENSOR_ID:
-				pA303Settings = &s5khm6_a303_seq_settings;
-				CAM_INFO(CAM_SENSOR, "s5khm6_a303_setting");
+				if(s_ctrl->camera_sensor_cmd == VIDIOC_CAM_SENSOR_STATR_NO_WRITE_IZOOM)
+				{
+				    pA303NoIZoomSettings = &s5khm6_a303_no_izoom_seq_settings;
+				}
+				else
+				{
+				    pA303Settings = &s5khm6_a303_seq_settings;
+				}
+				CAM_INFO(CAM_SENSOR, "s5khm6_a303_setting cmd: %d", s_ctrl->camera_sensor_cmd);
 				break;
 			case OV32C_SENSOR_ID:
 				oplus_shift_sensor_mode(s_ctrl);
@@ -334,10 +345,39 @@ int sensor_start_thread(void *arg) {
 				break;
 			}
 
-			CAM_INFO(CAM_SENSOR, "sensor_init_setting ptr:%p, pSettings:%p, pA303Settings:%p", ptr, pSettings, pA303Settings);
+			CAM_INFO(CAM_SENSOR, "sensor_init_setting ptr:%p, pSettings:%p, pA303Settings:%p, pA303NoIZoomSettings:%p", ptr, pSettings, pA303Settings, pA303NoIZoomSettings);
 
 
-			if (NULL != pA303Settings) {
+			if (NULL != pA303NoIZoomSettings) {
+				for (i = 0; i < pA303NoIZoomSettings->total_size; i ++) {
+					sensor_init_setting.reg_setting = &pA303NoIZoomSettings->reg_setting[pA303NoIZoomSettings->segment_index[i]];
+					sensor_init_setting.size = pA303NoIZoomSettings->segment_size[i];
+					sensor_init_setting.delay = pA303NoIZoomSettings->delay[i];
+
+					if (CAM_SENSOR_I2C_WRITE_RANDOM == pA303NoIZoomSettings->op_code[i]) {
+						sensor_init_setting.addr_type = pA303NoIZoomSettings->random_addr_type;
+						sensor_init_setting.data_type = pA303NoIZoomSettings->random_data_type;
+						rc = camera_io_dev_write(&(s_ctrl->io_master_info), &sensor_init_setting);
+					} else if (CAM_SENSOR_I2C_WRITE_SEQ == pA303NoIZoomSettings->op_code[i]) {
+						sensor_init_setting.addr_type = pA303NoIZoomSettings->seq_addr_type;
+						sensor_init_setting.data_type = pA303NoIZoomSettings->seq_data_type;
+						rc = camera_io_dev_write_continuous(&(s_ctrl->io_master_info), &sensor_init_setting, 0);
+					} else {
+						CAM_ERR(CAM_SENSOR, "a303 no izoom init settings opcode error!");
+						rc = -1;
+						break ;
+					}
+					if(rc < 0)
+					{
+						CAM_ERR(CAM_SENSOR, "a303 no izoom write squence setting failed!");
+						break ;
+					}
+				}
+				if (!rc) {
+					CAM_INFO(CAM_SENSOR, "a303  no izoom write squence init setting success!");
+					s_ctrl->sensor_initsetting_state = CAM_SENSOR_SETTING_WRITE_SUCCESS;
+				}
+			} else if (NULL != pA303Settings) {
 				for (i = 0; i < pA303Settings->total_size; i ++) {
 					sensor_init_setting.reg_setting = &pA303Settings->reg_setting[pA303Settings->segment_index[i]];
 					sensor_init_setting.size = pA303Settings->segment_size[i];
@@ -427,7 +467,7 @@ int sensor_start_thread(void *arg) {
 
 }
 
-int cam_sensor_start(struct cam_sensor_ctrl_t *s_ctrl) {
+int cam_sensor_start(struct cam_sensor_ctrl_t *s_ctrl, unsigned int camera_sensor_cmd) {
 	int rc = 0;
 
 	if(s_ctrl == NULL)
@@ -441,6 +481,7 @@ int cam_sensor_start(struct cam_sensor_ctrl_t *s_ctrl) {
 	mutex_lock(&(s_ctrl->sensor_power_state_mutex));
 	if(s_ctrl->sensor_power_state == CAM_SENSOR_POWER_OFF)
 	{
+		s_ctrl->camera_sensor_cmd = camera_sensor_cmd;
 		s_ctrl->sensor_open_thread = kthread_run(sensor_start_thread, s_ctrl, s_ctrl->device_name);
 		if (!s_ctrl->sensor_open_thread) {
 			CAM_ERR(CAM_SENSOR, "create sensor start thread failed");

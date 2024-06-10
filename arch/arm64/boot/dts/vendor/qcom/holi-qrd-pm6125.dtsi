@@ -344,7 +344,7 @@
 /*
 			gpu-cdev0 {
 				trip = <&modem_skin_trip1>;
-				// throttle to 650000000Hz 
+				// throttle to 650000000Hz
 				cooling-device = <&msm_gpu (THERMAL_MAX_LIMIT-4)
 							(THERMAL_MAX_LIMIT-4)>;
 			};
@@ -388,7 +388,7 @@
 		};
 	};
 
-	pa-therm0-step {
+	/*pa-therm0-step {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "step_wise";
@@ -429,7 +429,7 @@
 				cooling-device = <&modem_pa 3 3>;
 			};
 		};
-	};
+	};*/
 
 	xo-therm-step {
 		polling-delay-passive = <0>;

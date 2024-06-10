@@ -25,6 +25,7 @@
  **  Dongnan.Wu     2020/08/07     modify proc inode name
  **  Dongnan.Wu     2020/08/25     modify device & drive inode name
  **  Bin.Li         2020/09/07     modify for secure common KO
+ **  Zhanxiang.Gong 2023/04/18     add in avb cmdline feature in kernel 5.4
  ************************************************************************************/
 
 #include <linux/module.h>
@@ -63,6 +64,13 @@ static uint32_t oem_sec_reg_num = 0;
 static uint32_t oem_sec_en_anti_reg = 0;
 static uint32_t oem_sec_override1_reg = 0;
 static uint32_t oem_override1_en_value = 0;
+#ifdef QCOM_PLATFORM
+static int g_rpmb_enabled = -1;
+#endif
+
+#define SEC_VALUE_INVALID -1
+#define SHACMDLINELEN 65
+static char g_avbsha256value[SHACMDLINELEN];
 
 static int secure_common_parse_parent_dts(struct secure_data *secure_data)
 {
@@ -154,7 +162,7 @@ static ssize_t secureType_read_proc(struct file *file, char __user *buf,
         int len = 0;
         secure_type_t secureType = get_secureType();
 
-        len = sprintf(page, "%d", secureType);
+        len = sprintf(page, "%d", (int)secureType);
 
         if (len > *off) {
                 len -= *off;
@@ -219,7 +227,7 @@ static ssize_t secureSNBound_read_proc(struct file *file, char __user *buf,
         }
     }
 
-    len = sprintf(page, "%d", secureSNBound_state);
+        len = sprintf(page, "%d", (int)secureSNBound_state);
     if (len > *off) {
         len -= *off;
     }
@@ -237,6 +245,125 @@ static ssize_t secureSNBound_read_proc(struct file *file, char __user *buf,
 
 static struct file_operations secureSNBound_proc_fops = {
         .read = secureSNBound_read_proc,
+};
+
+#ifdef QCOM_PLATFORM
+static int is_rpmb_enabled(void)
+{
+        struct device_node * of_chosen = NULL;
+        char *bootargs = NULL;
+        int ret = -1;
+
+        of_chosen = of_find_node_by_path("/chosen");
+        if (of_chosen) {
+                bootargs = (char *)of_get_property(of_chosen, "bootargs", NULL);
+                if (!bootargs) {
+                        pr_err("%s: failed to get bootargs\n", __func__);
+                        return ret;
+                }
+        } else {
+                pr_err("%s: failed to get /chosen \n", __func__);
+                return ret;
+        }
+
+        if (strstr(bootargs, "oplusboot.rpmb_enabled=1")) {
+                pr_err("%s: success to get oplusboot.rpmb_enabled=1 in bootargs!\n", __func__);
+                ret = 1;
+        } else if (strstr(bootargs, "oplusboot.rpmb_enabled=0")) {
+                pr_err("%s: success to get oplusboot.rpmb_enabled=0 in bootargs!\n", __func__);
+                ret = 0;
+        } else {
+                pr_err("%s: fail to get oplusboot.rpmb_enabled in bootargs!\n", __func__);
+        }
+
+        return ret;
+}
+
+static ssize_t rpmbEnableStatus_read_proc(struct file *file, char __user *buf,
+                size_t count, loff_t *off)
+{
+        char page[8] = {0};
+        int len = 0;
+        int rpmb_enable_status = g_rpmb_enabled;
+
+        len = sprintf(page, "%d", rpmb_enable_status);
+
+        if (len > *off) {
+                len -= *off;
+        } else {
+                len = 0;
+        }
+
+        if (copy_to_user(buf, page, (len < count ? len : count))) {
+                return -EFAULT;
+        }
+        *off += len < count ? len : count;
+        return (len < count ? len : count);
+}
+
+static struct file_operations rpmbEnableStatus_proc_fops = {
+        .read = rpmbEnableStatus_read_proc,
+};
+#endif
+
+static int get_avbsha256_hash(char *avbcmdline, size_t cnt)
+{
+        struct device_node * of_chosen = NULL;
+        char *bootargs = NULL;
+        const char needle[2] = "=";
+        char *cmdlinestr = NULL;
+        char *cmdlinevalue = NULL;
+        int ret = 0;
+        of_chosen = of_find_node_by_path("/chosen");
+        if (of_chosen) {
+                bootargs = (char *)of_get_property(of_chosen, "bootargs", NULL);
+        if (!bootargs) {
+                ret = SEC_VALUE_INVALID;
+                pr_err("%s: failed to get bootargs\n", __func__);
+        }
+        } else {
+                ret = SEC_VALUE_INVALID;
+                pr_err("%s: failed to get /chosen \n", __func__);
+        }
+        if (bootargs != NULL) {
+                cmdlinestr = strstr(bootargs, "oplus.avbkeysha256=");
+        }
+        if (cmdlinestr != NULL) {
+                cmdlinevalue = strstr(cmdlinestr, needle);
+        } else {
+                ret = SEC_VALUE_INVALID;
+                pr_err("%s: fail to get avbsha256 in bootargs!\n", __func__);
+        }
+        if (cmdlinevalue != NULL) {
+                cmdlinevalue++;
+                memcpy(avbcmdline, cmdlinevalue, cnt);
+        }
+        return ret;
+}
+
+static ssize_t avbKeySha256_read_proc(struct file *file, char __user *buf,
+                size_t count, loff_t *off)
+{
+        char page[100] = {0};
+        int len = 0;
+        char *avbsha256value = NULL;
+        avbsha256value = g_avbsha256value;
+        len = sprintf(page, "%s", avbsha256value);
+        if (len > *off) {
+                len -= *off;
+        } else {
+                len = 0;
+        }
+
+        if (copy_to_user(buf, page, (len < count ? len : count))) {
+                return -EFAULT;
+        }
+        *off += len < count ? len : count;
+        return (len < count ? len : count);
+}
+
+static struct file_operations avbKeySha256_proc_fops = {
+        .read = avbKeySha256_read_proc,
 };
 
 static int secure_register_proc_fs(struct secure_data *secure_data)
@@ -264,6 +391,27 @@ static int secure_register_proc_fs(struct secure_data *secure_data)
                 return SECURE_ERROR_GENERAL;
         }
 
+#ifdef QCOM_PLATFORM
+        g_rpmb_enabled = is_rpmb_enabled();
+        /* Do not create the node when the cmdline value cannot be read */
+        if (g_rpmb_enabled != -1) {
+                /*  make the proc /proc/oplus_secure_common/rpmbEnableStatus  */
+                pentry = proc_create("rpmbEnableStatus", 0444, oplus_secure_common_dir, &rpmbEnableStatus_proc_fops);
+                if (!pentry) {
+                        dev_err(secure_data->dev, "create rpmbEnableStatus proc failed.\n");
+                        return SECURE_ERROR_GENERAL;
+                }
+        }
+#endif
+        /*  make the proc /proc/oplus_secure_common/avbKeySha256  */
+        memset(g_avbsha256value, 0, SHACMDLINELEN);
+        if (get_avbsha256_hash(g_avbsha256value, SHACMDLINELEN) != SEC_VALUE_INVALID) {
+                pentry = proc_create("avbKeySha256", 0444, oplus_secure_common_dir, &avbKeySha256_proc_fops);
+                if (!pentry) {
+                        dev_err(secure_data->dev, "create avbKeySha256 proc failed.\n");
+                        return SECURE_ERROR_GENERAL;
+                }
+        }
         return SECURE_OK;
 }
 

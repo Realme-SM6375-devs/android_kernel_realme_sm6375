@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #include <linux/gpio.h>
@@ -22,9 +22,6 @@ const struct mtk_chip_config st_spi_ctrdata = {
 	.tick_delay = 0,
 };
 #endif
-static unsigned char *buf;
-static unsigned int buf_size;
-static struct spi_transfer *xfer;
 
 static struct syna_tcm_data *g_tcm_info[TP_SUPPORT_MAX] = {NULL};
 
@@ -32,7 +29,7 @@ extern struct device_hcd *syna_remote_device_S3010_init(
 	struct syna_tcm_data *tcm_info);
 extern int syna_remote_device_S3910_destory(struct syna_tcm_data *tcm_info);
 static void syna_main_register(struct seq_file *s, void *chip_data);
-
+static void syna_set_touch_direction(void *chip_data, uint8_t dir);
 static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 				  unsigned char command, unsigned char *payload,
 				  unsigned int length, unsigned char **resp_buf,
@@ -42,36 +39,40 @@ static void syna_tcm_test_report(struct syna_tcm_data *tcm_info);
 static int syna_tcm_helper(struct syna_tcm_data *tcm_info);
 static int syna_tcm_enable_report(struct syna_tcm_data *tcm_info,
 				  enum report_type report_type, bool enable);
+#ifndef CONFIG_ARCH_QTI_VM
 static void syna_tcm_fw_update_in_bl(void *chip_data);
+#endif
+
 static int syna_tcm_spi_alloc_mem(struct syna_tcm_data *tcm_hcd,
 				  unsigned int count, unsigned int size)
 {
-	static unsigned int xfer_count;
+	struct spi_bus_data *spi_data = NULL;
 
-	if (count > xfer_count) {
-		kfree(xfer);
-		xfer = kcalloc(count, sizeof(*xfer), GFP_KERNEL);
-		if (!xfer) {
-			TPD_INFO("Failed to allocate memory for xfer\n");
-			xfer_count = 0;
+	spi_data = &tcm_hcd->spi_data;
+
+	if (count > spi_data->xfer_count) {
+		kfree(spi_data->xfer);
+		spi_data->xfer = kcalloc(count, sizeof(*spi_data->xfer), GFP_KERNEL);
+		if (!spi_data->xfer) {
+			TP_INFO(tcm_hcd->tp_index, "Failed to allocate memory for xfer\n");
+			spi_data->xfer_count = 0;
 			return -ENOMEM;
 		}
-		xfer_count = count;
-	} else {
-		memset(xfer, 0, count * sizeof(*xfer));
+		spi_data->xfer_count = count;
+		memset(spi_data->xfer, 0, count * sizeof(*spi_data->xfer));
 	}
 
-	if (size > buf_size) {
-		if (buf_size) {
-			kfree(buf);
+	if (size > spi_data->buf_size) {
+		if (spi_data->buf_size) {
+			kfree(spi_data->buf);
 		}
-		buf = kmalloc(size, GFP_KERNEL);
-		if (!buf) {
-			TPD_INFO("Failed to allocate memory for buf\n");
-			buf_size = 0;
+		spi_data->buf = kmalloc(size, GFP_KERNEL);
+		if (!spi_data->buf) {
+			TP_INFO(tcm_hcd->tp_index, "Failed to allocate memory for buf\n");
+			spi_data->buf_size = 0;
 			return -ENOMEM;
 		}
-		buf_size = size;
+		spi_data->buf_size = size;
 	}
 
 	return 0;
@@ -88,11 +89,14 @@ static inline int syna_tcm_read(struct syna_tcm_data *tcm_hcd,
 					unsigned char *data, unsigned int length)
 {
 	int retval;
+	//int retval_err = -1;
 	unsigned int idx;
+	struct spi_bus_data *spi_data = NULL;
 	struct spi_message msg;
 	struct spi_device *spi = tcm_hcd->client;
 	spi_message_init(&msg);
 
+	spi_data = &tcm_hcd->spi_data;
 
 	if (tcm_hcd->byte_delay_us == 0) {
 		retval = syna_tcm_spi_alloc_mem(tcm_hcd, 1, length);
@@ -100,38 +104,41 @@ static inline int syna_tcm_read(struct syna_tcm_data *tcm_hcd,
 		retval = syna_tcm_spi_alloc_mem(tcm_hcd, length, 1);
 	}
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory\n");
+		TP_INFO(tcm_hcd->tp_index, "Failed to allocate memory\n");
 		goto exit;
 	}
 
 	if (tcm_hcd->byte_delay_us == 0) {
-		memset(buf, 0xff, length);
-		xfer[0].len = length;
-		xfer[0].tx_buf = buf;
-		xfer[0].rx_buf = data;
+		memset(spi_data->buf, 0xff, length);
+		spi_data->xfer[0].len = length;
+		spi_data->xfer[0].tx_buf = spi_data->buf;
+		spi_data->xfer[0].rx_buf = data;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0))
 		if (tcm_hcd->block_delay_us) {
-			xfer[0].delay_usecs = tcm_hcd->block_delay_us;
+			spi_data->xfer[0].delay_usecs = tcm_hcd->block_delay_us;
 		}
-		spi_message_add_tail(&xfer[0], &msg);
+#endif
+		spi_message_add_tail(&spi_data->xfer[0], &msg);
 	} else {
-		buf[0] = 0xff;
+		spi_data->buf[0] = 0xff;
 		for (idx = 0; idx < length; idx++) {
-			xfer[idx].len = 1;
-			xfer[idx].tx_buf = buf;
-			xfer[idx].rx_buf = &data[idx];
-
-			xfer[idx].delay_usecs = tcm_hcd->byte_delay_us;
+			spi_data->xfer[idx].len = 1;
+			spi_data->xfer[idx].tx_buf = spi_data->buf;
+			spi_data->xfer[idx].rx_buf = &data[idx];
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0))
+			spi_data->xfer[idx].delay_usecs = tcm_hcd->byte_delay_us;
 			if (tcm_hcd->block_delay_us && (idx == length - 1)) {
-				xfer[idx].delay_usecs = tcm_hcd->block_delay_us;
+				spi_data->xfer[idx].delay_usecs = tcm_hcd->block_delay_us;
 			}
-			spi_message_add_tail(&xfer[idx], &msg);
+#endif
+			spi_message_add_tail(&spi_data->xfer[idx], &msg);
 		}
 	}
 	retval = spi_sync(spi, &msg);
 	if (retval == 0) {
 		retval = length;
 	} else {
-		TPD_INFO("Failed to complete SPI transfer, error = %d\n", retval);
+		TP_INFO(tcm_hcd->tp_index, "Failed to complete SPI transfer, error = %d\n", retval);
 	}
 exit:
 	return retval;
@@ -149,10 +156,14 @@ static inline int syna_tcm_write(struct syna_tcm_data *tcm_hcd,
 	unsigned char *data, unsigned int length)
 {
 	int retval;
+	//int retval_err = -1;
 	unsigned int idx;
+	struct spi_bus_data *spi_data = NULL;
+
 	struct spi_message msg;
 	struct spi_device *spi = tcm_hcd->client;
 	spi_message_init(&msg);
+	spi_data = &tcm_hcd->spi_data;
 
 	if (tcm_hcd->byte_delay_us == 0) {
 		retval = syna_tcm_spi_alloc_mem(tcm_hcd, 1, 0);
@@ -160,35 +171,38 @@ static inline int syna_tcm_write(struct syna_tcm_data *tcm_hcd,
 		retval = syna_tcm_spi_alloc_mem(tcm_hcd, length, 0);
 	}
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory\n");
+		TP_INFO(tcm_hcd->tp_index, "Failed to allocate memory\n");
 		goto exit;
 	}
 
 
 	if (tcm_hcd->byte_delay_us == 0) {
-		xfer[0].len = length;
-		xfer[0].tx_buf = data;
+		spi_data->xfer[0].len = length;
+		spi_data->xfer[0].tx_buf = data;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0))
 		if (tcm_hcd->block_delay_us) {
-			xfer[0].delay_usecs = tcm_hcd->block_delay_us;
+			spi_data->xfer[0].delay_usecs = tcm_hcd->block_delay_us;
 		}
-		spi_message_add_tail(&xfer[0], &msg);
+#endif
+		spi_message_add_tail(&spi_data->xfer[0], &msg);
 	} else {
 		for (idx = 0; idx < length; idx++) {
-			xfer[idx].len = 1;
-			xfer[idx].tx_buf = &data[idx];
-
-			xfer[idx].delay_usecs = tcm_hcd->byte_delay_us;
+			spi_data->xfer[idx].len = 1;
+			spi_data->xfer[idx].tx_buf = &data[idx];
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0))
+			spi_data->xfer[idx].delay_usecs = tcm_hcd->byte_delay_us;
 			if (tcm_hcd->block_delay_us && (idx == length - 1)) {
-					  xfer[idx].delay_usecs = tcm_hcd->block_delay_us;
+					  spi_data->xfer[idx].delay_usecs = tcm_hcd->block_delay_us;
 			}
-			spi_message_add_tail(&xfer[idx], &msg);
+#endif
+			spi_message_add_tail(&spi_data->xfer[idx], &msg);
 		}
 	}
 	retval = spi_sync(spi, &msg);
 	if (retval == 0) {
 		retval = length;
 	} else {
-		TPD_INFO("Failed to complete SPI transfer, error = %d\n", retval);
+		TP_INFO(tcm_hcd->tp_index, "Failed to complete SPI transfer, error = %d\n", retval);
 	}
 exit:
 	return retval;
@@ -224,7 +238,7 @@ static int syna_get_report_data(struct syna_tcm_data *tcm_info,
 				   bits / 8, bits / 8);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy report data\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy report data\n");
 			return retval;
 		}
 
@@ -280,7 +294,6 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 	struct touch_hcd *touch_hcd = NULL;
 	struct touch_data *touch_data = NULL;
 	struct object_data *object_data = NULL;
-	static unsigned int end_of_foreach = 0;
 
 	touch_hcd = tcm_info->touch_hcd;
 	touch_data = &touch_hcd->touch_data;
@@ -290,10 +303,10 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 	report_size = tcm_info->report.buffer.data_length;
 	size = sizeof(*object_data) * touch_hcd->max_objects;
 	memset(touch_hcd->touch_data.object_data, 0x00, size);
+	TPD_DEBUG("syna_parse_report:%*ph\n", tcm_info->report.buffer.data_length, tcm_info->report.buffer.buf);
 
 	while (idx < config_size) {
 		code = config_data[idx++];
-
 		switch (code) {
 		case TOUCH_END:
 			goto exit;
@@ -311,7 +324,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			break;
 
 		case TOUCH_FOREACH_END:
-			end_of_foreach = idx;
+			tcm_info->end_of_foreach = idx;
 
 			if (active_only) {
 				if (num_of_active_objects) {
@@ -344,7 +357,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get timestamp\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get timestamp\n");
 				return retval;
 			}
 
@@ -357,12 +370,12 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &obj);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object index\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object index\n");
 				return retval;
 			}
 
 			if (obj >= touch_hcd->max_objects) {
-				TPD_INFO("Object index error 0x%0X\n", obj);
+				TP_INFO(tcm_info->tp_index, "Object index error 0x%0X\n", obj);
 				return -1;
 			}
 
@@ -373,15 +386,26 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			bits = config_data[idx++];
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
+			if (tcm_info->ts->palm_to_sleep_enable
+				&& data == PALM_FLAG
+				&& !tcm_info->ts->is_suspended) {
+				TPD_DEBUG("%s:detect palm,now to sleep\n", __func__);
+				tcm_info->palm_to_sleep_state = PALM_TO_SLEEP;
+			} else if (data == PALM_FLAG) {
+				tcm_info->palm_hold_report = 1;
+			} else if (data == 0) {
+				tcm_info->palm_hold_report = 0;
+			}
+
 			if (retval < 0) {
-				TPD_INFO("Failed to get object classification\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object classification\n");
 				return retval;
 			}
 			if (obj >= touch_hcd->max_objects) {
-				TPD_INFO("obj> max_obj!! obj[%d]Report Data[%d]:", obj, report_size);
+				TP_INFO(tcm_info->tp_index, "obj> max_obj!! obj[%d]Report Data[%d]:", obj, report_size);
 				if (tp_debug != 0) {
 					for (i = 0; i < report_size; i++) {
-						TPD_INFO("syna data:[0x%2x]", tcm_info->report.buffer.buf[i]);
+						TP_INFO(tcm_info->tp_index, "syna data:[0x%2x]", tcm_info->report.buffer.buf[i]);
 					}
 				}
 				return -1;
@@ -395,7 +419,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object x position\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object x position\n");
 				return retval;
 			}
 
@@ -408,7 +432,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object y position\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object y position\n");
 				return retval;
 			}
 
@@ -421,7 +445,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object z\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object z\n");
 				return retval;
 			}
 
@@ -434,7 +458,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object x width\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object x width\n");
 				return retval;
 			}
 
@@ -447,7 +471,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object y width\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object y width\n");
 				return retval;
 			}
 
@@ -457,7 +481,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 		case  TOUCH_REPORT_CUSTOMER_GRIP_INFO:
 			bits = config_data[idx++];
 			if (retval < 0) {
-				TPD_INFO("Failed to get Grip info\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get Grip info\n");
 				return retval;
 			}
 			object_data[obj].eywidth  = grip_data[0];
@@ -471,7 +495,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object tx position\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object tx position\n");
 				return retval;
 			}
 
@@ -484,7 +508,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get object rx position\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get object rx position\n");
 				return retval;
 			}
 
@@ -497,7 +521,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get 0D buttons state\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get 0D buttons state\n");
 				return retval;
 			}
 
@@ -515,7 +539,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get gesture double tap\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get gesture double tap\n");
 				return retval;
 			}
 
@@ -529,7 +553,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 						      (unsigned int *)(&touch_data->extra_gesture_info[0]));
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get gesture double tap\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get gesture double tap\n");
 				return retval;
 			}
 
@@ -542,8 +566,22 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 						      (unsigned int *)(&touch_data->data_point[0]));
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get gesture double tap\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get gesture double tap\n");
 				return retval;
+			}
+			if ((2 == tcm_info->normal_config_version)
+				   && !*tcm_info->in_suspend && touch_data->data_point[4]) {
+				if (!tcm_info->fp_area_rate.max) {
+					tcm_info->fp_area_rate.min = touch_data->data_point[4];
+					tcm_info->fp_area_rate.max = touch_data->data_point[4];
+				} else if (touch_data->data_point[4] < tcm_info->fp_area_rate.min) {
+					tcm_info->fp_area_rate.min = touch_data->data_point[4];
+				} else if (touch_data->data_point[4] > tcm_info->fp_area_rate.max) {
+					tcm_info->fp_area_rate.max = touch_data->data_point[4];
+				}
+				tcm_info->fp_area_rate.recent = touch_data->data_point[4];
+				TPD_DEBUG("Fingerprint area: %d [%d %d]\n", tcm_info->fp_area_rate.recent,
+					   tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
 			}
 
 			offset += bits;
@@ -554,7 +592,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get frame rate\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get frame rate\n");
 				return retval;
 			}
 
@@ -567,7 +605,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get power IM\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get power IM\n");
 				return retval;
 			}
 
@@ -580,7 +618,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get CID IM\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get CID IM\n");
 				return retval;
 			}
 
@@ -593,7 +631,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get rail IM\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get rail IM\n");
 				return retval;
 			}
 
@@ -606,7 +644,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get CID variance IM\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get CID variance IM\n");
 				return retval;
 			}
 
@@ -619,7 +657,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get NSM frequency\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get NSM frequency\n");
 				return retval;
 			}
 
@@ -632,7 +670,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get NSM state\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get NSM state\n");
 				return retval;
 			}
 
@@ -645,7 +683,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get number of active objects\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get number of active objects\n");
 				return retval;
 			}
 
@@ -655,7 +693,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			offset += bits;
 
 			if (touch_data->num_of_active_objects == 0) {
-				idx = end_of_foreach;
+				idx = tcm_info->end_of_foreach;
 			}
 
 			break;
@@ -665,7 +703,7 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			retval = syna_get_report_data(tcm_info, offset, bits, &data);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to get number of CPU cycles used since last frame\n");
+				TP_INFO(tcm_info->tp_index, "Failed to get number of CPU cycles used since last frame\n");
 				return retval;
 			}
 
@@ -687,11 +725,55 @@ static int syna_parse_report(struct syna_tcm_data *tcm_info)
 			bits = config_data[idx++];
 			offset += bits;
 			break;
+		default:
+			break;
 		}
 	}
 
 exit:
 	return 0;
+}
+
+static void syna_get_diff_data_record(struct syna_tcm_data *tcm_info)
+{
+	int tx_num = tcm_info->hw_res->tx_num;
+	int rx_num = tcm_info->hw_res->rx_num;
+	int i = 0, j = 0;
+	u8 *pdata_8;
+	char buf[200];
+
+	TP_INFO(tcm_info->tp_index, "report size:%d, report length:%d,\n", tcm_info->report.buffer.buf_size, tcm_info->report.buffer.data_length);
+	pdata_8 = &tcm_info->report.buffer.buf[0];
+
+	if (tcm_info->report.buffer.data_length > SYNA_TCM_DIFF_BUF_LENGTH || tcm_info->report.buffer.data_length != (2 * (tx_num * rx_num + tx_num + rx_num)) || \
+			(tx_num > 49) || (rx_num > 49)) {
+		TP_INFO(tcm_info->tp_index, "report length %d tx_num:%d rx_num:%d error\n", tcm_info->report.buffer.data_length, tx_num, rx_num);
+	} else if (tcm_info->differ_read_every_frame) {
+		memset(buf, 0, 200 * sizeof(char));
+		TPD_DEBUG("diff data\n");
+		for (i = 0; i < tx_num; i++) {
+			for (j = 0; j < rx_num; j++) {
+				snprintf(&buf[4 * j], 5, "%02x%02x", pdata_8[0], pdata_8[1]);
+				pdata_8 += 2;
+			}
+			TPD_DEBUG("diff_record:[%2d]%s", i, buf);
+		}
+		TPD_DEBUG("sc_nomal diff data:\n");
+		for (i = 0; i < rx_num; i++) {
+			snprintf(&buf[4 * i], 5, "%02x%02x", pdata_8[0], pdata_8[1]);
+			pdata_8 += 2;
+		}
+		TPD_DEBUG("diff_record:[RX]%s", buf);
+		for (i = 0; i < tx_num; i++) {
+			snprintf(&buf[4 * i], 5, "%02x%02x", pdata_8[0], pdata_8[1]);
+			pdata_8 += 2;
+		}
+		TPD_DEBUG("diff_record:[TX]%s", buf);
+		TPD_DEBUG("end\n");
+	} else {
+		TPD_DEBUG("differ_read_every_frame is false\n");
+	}
+	return;
 }
 
 static int syna_get_input_params(struct syna_tcm_data *tcm_info)
@@ -705,7 +787,7 @@ static int syna_get_input_params(struct syna_tcm_data *tcm_info)
 					&tcm_info->config.data_length, 0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_GET_TOUCH_REPORT_CONFIG));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_GET_TOUCH_REPORT_CONFIG));
 		UNLOCK_BUFFER(tcm_info->config);
 		return retval;
 	}
@@ -728,7 +810,7 @@ static int syna_set_default_report_config(struct syna_tcm_data *tcm_info)
 		retval = syna_tcm_alloc_mem(&tcm_info->config, length);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to alloc mem\n");
+			TP_INFO(tcm_info->tp_index, "Failed to alloc mem\n");
 			goto exit;
 		}
 
@@ -762,7 +844,7 @@ static int syna_get_default_report_config(struct syna_tcm_data *tcm_info)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_GET_TOUCH_REPORT_CONFIG));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_GET_TOUCH_REPORT_CONFIG));
 		goto exit;
 	}
 
@@ -782,7 +864,7 @@ static int syna_set_normal_report_config(struct syna_tcm_data *tcm_info)
 	length = le2_to_uint(tcm_info->app_info.max_touch_report_config_size);
 
 	if (length < TOUCH_REPORT_CONFIG_SIZE) {
-		TPD_INFO("Invalid maximum touch report config size\n");
+		TP_INFO(tcm_info->tp_index, "Invalid maximum touch report config size\n");
 		return -EINVAL;
 	}
 
@@ -791,7 +873,7 @@ static int syna_set_normal_report_config(struct syna_tcm_data *tcm_info)
 	retval = syna_tcm_alloc_mem(&touch_hcd->out, length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory for touch_hcd->out.buf\n");
+		TP_INFO(tcm_info->tp_index, "Failed to allocate memory for touch_hcd->out.buf\n");
 		UNLOCK_BUFFER(touch_hcd->out);
 		return retval;
 	}
@@ -802,6 +884,11 @@ static int syna_set_normal_report_config(struct syna_tcm_data *tcm_info)
 	if (0 == tcm_info->normal_config_version) {
 		touch_hcd->out.buf[idx++] = TOUCH_REPORT_GESTURE_INFO;
 		touch_hcd->out.buf[idx++] = 48;
+	} else if (2 == tcm_info->normal_config_version) {
+		touch_hcd->out.buf[idx++] = TOUCH_REPORT_GESTURE_INFO;
+		touch_hcd->out.buf[idx++] = 48;
+		touch_hcd->out.buf[idx++] = TOUCH_REPORT_GESTURE_COORDINATE;
+		touch_hcd->out.buf[idx++] = 192;
 	}
 	touch_hcd->out.buf[idx++] = TOUCH_FOREACH_ACTIVE_OBJECT;
 	touch_hcd->out.buf[idx++] = TOUCH_OBJECT_N_INDEX;
@@ -833,7 +920,7 @@ static int syna_set_normal_report_config(struct syna_tcm_data *tcm_info)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_SET_TOUCH_REPORT_CONFIG));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_SET_TOUCH_REPORT_CONFIG));
 		UNLOCK_BUFFER(touch_hcd->resp);
 		UNLOCK_BUFFER(touch_hcd->out);
 		return retval;
@@ -856,7 +943,7 @@ static int syna_set_gesture_report_config(struct syna_tcm_data *tcm_info)
 	length = le2_to_uint(tcm_info->app_info.max_touch_report_config_size);
 
 	if (length < TOUCH_REPORT_CONFIG_SIZE) {
-		TPD_INFO("Invalid maximum touch report config size\n");
+		TP_INFO(tcm_info->tp_index, "Invalid maximum touch report config size\n");
 		return -EINVAL;
 	}
 
@@ -865,7 +952,7 @@ static int syna_set_gesture_report_config(struct syna_tcm_data *tcm_info)
 	retval = syna_tcm_alloc_mem(&touch_hcd->out, length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory for touch_hcd->out.buf\n");
+		TP_INFO(tcm_info->tp_index, "Failed to allocate memory for touch_hcd->out.buf\n");
 		UNLOCK_BUFFER(touch_hcd->out);
 		return retval;
 	}
@@ -911,7 +998,7 @@ static int syna_set_gesture_report_config(struct syna_tcm_data *tcm_info)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_SET_TOUCH_REPORT_CONFIG));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_SET_TOUCH_REPORT_CONFIG));
 		UNLOCK_BUFFER(touch_hcd->resp);
 		UNLOCK_BUFFER(touch_hcd->out);
 		return retval;
@@ -933,7 +1020,7 @@ static int syna_set_input_reporting(struct syna_tcm_data *tcm_info, bool suspend
 
 	if (tcm_info->id_info.mode != MODE_APPLICATION
 	    || tcm_info->app_status != APP_STATUS_OK) {
-		TPD_INFO("Application firmware not running\n");
+		TP_INFO(tcm_info->tp_index, "Application firmware not running\n");
 		return 0;
 	}
 
@@ -945,7 +1032,7 @@ static int syna_set_input_reporting(struct syna_tcm_data *tcm_info, bool suspend
 		retval = syna_set_normal_report_config(tcm_info);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set report config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set report config\n");
 			goto default_config;
 		}
 
@@ -953,7 +1040,7 @@ static int syna_set_input_reporting(struct syna_tcm_data *tcm_info, bool suspend
 		retval = syna_set_gesture_report_config(tcm_info);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set report config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set report config\n");
 			goto default_config;
 		}
 	}
@@ -961,7 +1048,7 @@ static int syna_set_input_reporting(struct syna_tcm_data *tcm_info, bool suspend
 	retval = syna_get_input_params(tcm_info);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to get input parameters\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get input parameters\n");
 	}
 
 	goto exit;
@@ -971,7 +1058,7 @@ default_config:
 	retval = syna_set_default_report_config(tcm_info);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to set default report config");
+		TP_INFO(tcm_info->tp_index, "Failed to set default report config");
 	}
 
 exit:
@@ -1006,23 +1093,23 @@ static int syna_async_work_callback(struct syna_tcm_data *tcm_info)
 		return 0;
 	}
 
-	TPD_INFO("%s: async work enter\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: async work enter\n", __func__);
 	if (tcm_info->first_sync_flag) {
 		tcm_info->first_sync_flag = false;
 		return 0;
 	}
 	/*reinit_completion(&tcm_info->resume_complete);*/
 	if (tcm_info->suspend_state == TP_RESUME_COMPLETE) {
-		TPD_INFO("%s: *tcm_info->suspend_state %d \n", __func__, tcm_info->suspend_state);
+		TP_INFO(tcm_info->tp_index, "%s: *tcm_info->suspend_state %d \n", __func__, tcm_info->suspend_state);
 		complete(&tcm_info->resume_complete);
 		return 0;
 	}
 
 	if (tcm_info->in_test_process) {
-		TPD_INFO("%s: In test process, do not switch mode\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s: In test process, do not switch mode\n", __func__);
 		return 0;
 	}
-	TPD_INFO("%s: async work exit\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: async work exit\n", __func__);
 
 	queue_work(tcm_info->async_workqueue, &tcm_info->async_work);
 	return 0;
@@ -1047,20 +1134,28 @@ static void syna_tcm_dispatch_report(struct syna_tcm_data *tcm_info)
 	LOCK_BUFFER(tcm_info->in);
 	LOCK_BUFFER(tcm_info->report.buffer);
 
+#ifdef EXTERNAL_DEBUG_LOGGING
+		if (tcm_info->report_to_queue[tcm_info->report_code]) {
+			device_update_report_queue(tcm_info, tcm_info->report_code,
+				&tcm_info->in);
+		}
+#endif
 	tcm_info->report.buffer.buf = &tcm_info->in.buf[MESSAGE_HEADER_SIZE];
 	tcm_info->report.buffer.buf_size = tcm_info->in.buf_size - MESSAGE_HEADER_SIZE;
 	tcm_info->report.buffer.data_length = tcm_info->payload_length;
 	tcm_info->report.id = tcm_info->report_code;
 
+	TPD_DEBUG("%s: buf:%02x,%02x,%02x,%02x\n", __func__, tcm_info->in.buf[0], tcm_info->in.buf[1], tcm_info->in.buf[2], tcm_info->in.buf[3]);
+
 	if (tcm_info->report.id == REPORT_TOUCH) {
 		if (*tcm_info->loading_fw) {
-		    TPD_INFO("%s: disable touch when TP loading_fw !\n", __func__);
+		    TP_INFO(tcm_info->tp_index, "%s: disable touch when TP loading_fw !\n", __func__);
 		    goto exit;
 		}
 		ret = syna_parse_report(tcm_info);
 
 		if (ret < 0) {
-			TPD_INFO("Failed to parse report\n");
+			TP_INFO(tcm_info->tp_index, "Failed to parse report\n");
 			goto exit;
 		}
 
@@ -1070,9 +1165,15 @@ static void syna_tcm_dispatch_report(struct syna_tcm_data *tcm_info)
 		} else {
 			syna_set_trigger_reason(tcm_info, IRQ_TOUCH);
 
+			if (tcm_info->palm_to_sleep_state == PALM_TO_SLEEP) {
+				syna_set_trigger_reason(tcm_info, IRQ_PALM);
+				tcm_info->palm_to_sleep_state = PALM_TO_DEFAULT;
+			}
+
 			if (touch_data->lpwg_gesture == TOUCH_HOLD_UP
 			    || touch_data->lpwg_gesture == TOUCH_HOLD_DOWN) {
 				syna_set_trigger_reason(tcm_info, IRQ_FINGERPRINT);
+				tcm_info->fp_triggered = true;
 			}
 		}
 
@@ -1083,6 +1184,9 @@ static void syna_tcm_dispatch_report(struct syna_tcm_data *tcm_info)
 		}
 	} else if (tcm_info->report.id == REPORT_TOUCH_HOLD) {
 		syna_set_trigger_reason(tcm_info, IRQ_FINGERPRINT);
+
+	} else if (tcm_info->report.id == REPORT_DIFF) {
+		syna_get_diff_data_record(tcm_info);
 
 	} else if (tcm_info->report.id == REPORT_LOG) {
 		syna_set_trigger_reason(tcm_info, IRQ_FW_HEALTH);
@@ -1125,7 +1229,7 @@ static void syna_tcm_dispatch_response(struct syna_tcm_data *tcm_info)
 	retval = syna_tcm_alloc_mem(&tcm_info->resp, tcm_info->payload_length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory for tcm_info->resp.buf\n");
+		TP_INFO(tcm_info->tp_index, "Failed to allocate memory for tcm_info->resp.buf\n");
 		UNLOCK_BUFFER(tcm_info->resp);
 		atomic_set(&tcm_info->command_status, CMD_ERROR);
 		goto exit;
@@ -1138,7 +1242,7 @@ static void syna_tcm_dispatch_response(struct syna_tcm_data *tcm_info)
 			   tcm_info->in.buf_size - MESSAGE_HEADER_SIZE, tcm_info->payload_length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to copy payload\n");
+		TP_INFO(tcm_info->tp_index, "Failed to copy payload\n");
 		UNLOCK_BUFFER(tcm_info->in);
 		UNLOCK_BUFFER(tcm_info->resp);
 		atomic_set(&tcm_info->command_status, CMD_ERROR);
@@ -1185,7 +1289,7 @@ static void syna_tcm_dispatch_message(struct syna_tcm_data *tcm_info)
 				   MIN(sizeof(tcm_info->id_info), payload_length));
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy identification info\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy identification info\n");
 			UNLOCK_BUFFER(tcm_info->in);
 			return;
 		}
@@ -1193,7 +1297,7 @@ static void syna_tcm_dispatch_message(struct syna_tcm_data *tcm_info)
 		UNLOCK_BUFFER(tcm_info->in);
 
 		syna_tcm_resize_chunk_size(tcm_info);
-		TPD_INFO("Received identify report (firmware mode = 0x%02x)\n",
+		TP_INFO(tcm_info->tp_index, "Received identify report (firmware mode = 0x%02x)\n",
 			 tcm_info->id_info.mode);
 		if (0x0b == tcm_info->id_info.mode) {
 			tcm_info->firmware_mode_count++;
@@ -1211,7 +1315,7 @@ static void syna_tcm_dispatch_message(struct syna_tcm_data *tcm_info)
 				break;
 
 			default:
-				TPD_INFO("Device has been reset\n");
+				TP_INFO(tcm_info->tp_index, "Device has been reset\n");
 				atomic_set(&tcm_info->command_status, CMD_ERROR);
 				complete(&tcm_info->response_complete);
 				break;
@@ -1259,7 +1363,7 @@ static int syna_tcm_continued_read(struct syna_tcm_data *tcm_info)
 	retval = syna_tcm_realloc_mem(&tcm_info->in, total_length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to reallocate memory for tcm_info->in.buf\n");
+		TP_INFO(tcm_info->tp_index, "Failed to reallocate memory for tcm_info->in.buf\n");
 		UNLOCK_BUFFER(tcm_info->in);
 		return retval;
 	}
@@ -1299,7 +1403,7 @@ static int syna_tcm_continued_read(struct syna_tcm_data *tcm_info)
 		retval = syna_tcm_alloc_mem(&tcm_info->temp, xfer_length + 2);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to allocate memory for tcm_info->temp.buf\n");
+			TP_INFO(tcm_info->tp_index, "Failed to allocate memory for tcm_info->temp.buf\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			UNLOCK_BUFFER(tcm_info->in);
 			return retval;
@@ -1309,7 +1413,7 @@ static int syna_tcm_continued_read(struct syna_tcm_data *tcm_info)
 						  xfer_length + 2);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to read from device\n");
+			TP_INFO(tcm_info->tp_index, "Failed to read from device\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			UNLOCK_BUFFER(tcm_info->in);
 			return retval;
@@ -1319,14 +1423,14 @@ static int syna_tcm_continued_read(struct syna_tcm_data *tcm_info)
 		code = tcm_info->temp.buf[1];
 
 		if (marker != MESSAGE_MARKER) {
-			TPD_INFO("Incorrect header marker (0x%02x)\n", marker);
+			TP_INFO(tcm_info->tp_index, "Incorrect header marker (0x%02x)\n", marker);
 			UNLOCK_BUFFER(tcm_info->temp);
 			UNLOCK_BUFFER(tcm_info->in);
 			return -EIO;
 		}
 
 		if (code != STATUS_CONTINUED_READ) {
-			TPD_INFO("Incorrect header code (0x%02x)\n", code);
+			TP_INFO(tcm_info->tp_index, "Incorrect header code (0x%02x)\n", code);
 			UNLOCK_BUFFER(tcm_info->temp);
 			UNLOCK_BUFFER(tcm_info->in);
 			return -EIO;
@@ -1336,7 +1440,7 @@ static int syna_tcm_continued_read(struct syna_tcm_data *tcm_info)
 				   &tcm_info->temp.buf[2], xfer_length, xfer_length);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy payload\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy payload\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			UNLOCK_BUFFER(tcm_info->in);
 			return retval;
@@ -1373,7 +1477,7 @@ static int syna_tcm_raw_read(struct syna_tcm_data *tcm_info,
 	unsigned int xfer_length = 0, remaining_length = 0;
 
 	if (length < 2) {
-		TPD_INFO("Invalid length information\n");
+		TP_INFO(tcm_info->tp_index, "Invalid length information\n");
 		return -EINVAL;
 	}
 
@@ -1415,7 +1519,7 @@ static int syna_tcm_raw_read(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_alloc_mem(&tcm_info->temp, xfer_length + 2);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to allocate memory for tcm_info->temp.buf\n");
+			TP_INFO(tcm_info->tp_index, "Failed to allocate memory for tcm_info->temp.buf\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			return retval;
 		}
@@ -1423,7 +1527,7 @@ static int syna_tcm_raw_read(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_read(tcm_info, tcm_info->temp.buf, xfer_length + 2);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to read from device\n");
+			TP_INFO(tcm_info->tp_index, "Failed to read from device\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			return retval;
 		}
@@ -1436,7 +1540,7 @@ static int syna_tcm_raw_read(struct syna_tcm_data *tcm_info,
 
 		} else {
 			if (code != STATUS_CONTINUED_READ) {
-				TPD_INFO("Incorrect header code (0x%02x)\n", code);
+				TP_INFO(tcm_info->tp_index, "Incorrect header code (0x%02x)\n", code);
 				UNLOCK_BUFFER(tcm_info->temp);
 				return -EIO;
 			}
@@ -1447,7 +1551,7 @@ static int syna_tcm_raw_read(struct syna_tcm_data *tcm_info,
 		}
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy data\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy data\n");
 			UNLOCK_BUFFER(tcm_info->temp);
 			return retval;
 		}
@@ -1512,7 +1616,7 @@ static int syna_tcm_raw_write(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_alloc_mem(&tcm_info->out, xfer_length + 1);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to allocate memory for tcm_info->out.buf\n");
+			TP_INFO(tcm_info->tp_index, "Failed to allocate memory for tcm_info->out.buf\n");
 			UNLOCK_BUFFER(tcm_info->out);
 			return retval;
 		}
@@ -1532,7 +1636,7 @@ static int syna_tcm_raw_write(struct syna_tcm_data *tcm_info,
 					   xfer_length);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to copy data\n");
+				TP_INFO(tcm_info->tp_index, "Failed to copy data\n");
 				UNLOCK_BUFFER(tcm_info->out);
 				return retval;
 			}
@@ -1546,7 +1650,7 @@ static int syna_tcm_raw_write(struct syna_tcm_data *tcm_info,
 				snprintf(report, 30, "raw_write_err_%2x", command);
 				tp_kfree((void **)&report);
 			}
-			TPD_INFO("Failed to write to device\n");
+			TP_INFO(tcm_info->tp_index, "Failed to write to device\n");
 			UNLOCK_BUFFER(tcm_info->out);
 			return retval;
 		}
@@ -1610,7 +1714,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 					 tcm_info->read_length);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to read from device\n");
+		TP_INFO(tcm_info->tp_index, "Failed to read from device\n");
 		UNLOCK_BUFFER(tcm_info->in);
 		goto exit;
 	}
@@ -1618,7 +1722,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 	header = (struct syna_tcm_message_header *)tcm_info->in.buf;
 
 	if (header->marker != MESSAGE_MARKER) {
-		TPD_INFO("wrong header marker:0x%02x\n", header->marker);
+		TP_INFO(tcm_info->tp_index, "wrong header marker:0x%02x\n", header->marker);
 		UNLOCK_BUFFER(tcm_info->in);
 		retval = -ENXIO;
 		goto exit;
@@ -1637,7 +1741,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 
 		case STATUS_CONTINUED_READ:
 
-		/*TPD_INFO("Out-of-sync continued read\n");*/
+		/*TP_INFO(tcm_info->tp_index, "Out-of-sync continued read\n");*/
 		case STATUS_IDLE:
 		case STATUS_BUSY:
 			tcm_info->payload_length = 0;
@@ -1646,7 +1750,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 			goto exit;
 
 		default:
-			TPD_INFO("Incorrect header code (0x%02x)\n", tcm_info->report_code);
+			TP_INFO(tcm_info->tp_index, "Incorrect header code (0x%02x)\n", tcm_info->report_code);
 
 			if (tcm_info->report_code != STATUS_ERROR) {
 				UNLOCK_BUFFER(tcm_info->in);
@@ -1682,7 +1786,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 	retval = syna_tcm_continued_read(tcm_info);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to do continued read\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do continued read\n");
 		goto exit;
 	}
 
@@ -1698,7 +1802,7 @@ static int syna_tcm_read_message(struct syna_tcm_data *tcm_info,
 
 check_padding:
 	if (tcm_info->in.buf[total_length - 1] != MESSAGE_PADDING) {
-		TPD_INFO("Incorrect message padding byte (0x%02x)\n",
+		TP_INFO(tcm_info->tp_index, "Incorrect message padding byte (0x%02x)\n",
 			 tcm_info->in.buf[total_length - 1]);
 		UNLOCK_BUFFER(tcm_info->in);
 		retval = -EIO;
@@ -1819,7 +1923,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_alloc_mem(&tcm_info->out, xfer_length + 1);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to allocate memory for tcm_info->out.buf\n");
+			TP_INFO(tcm_info->tp_index, "Failed to allocate memory for tcm_info->out.buf\n");
 			UNLOCK_BUFFER(tcm_info->out);
 			mutex_unlock(&tcm_info->rw_mutex);
 			goto exit;
@@ -1838,7 +1942,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 						   xfer_length - 2);
 
 				if (retval < 0) {
-					TPD_INFO("Failed to copy payload\n");
+					TP_INFO(tcm_info->tp_index, "Failed to copy payload\n");
 					UNLOCK_BUFFER(tcm_info->out);
 					mutex_unlock(&tcm_info->rw_mutex);
 					goto exit;
@@ -1855,7 +1959,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 					   xfer_length);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to copy payload\n");
+				TP_INFO(tcm_info->tp_index, "Failed to copy payload\n");
 				UNLOCK_BUFFER(tcm_info->out);
 				mutex_unlock(&tcm_info->rw_mutex);
 				goto exit;
@@ -1870,7 +1974,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 				snprintf(report, 30, "write_msg_err_wr%2x", command);
 				tp_kfree((void **)&report);
 			}
-			TPD_INFO("Failed to write to device\n");
+			TP_INFO(tcm_info->tp_index, "Failed to write to device\n");
 			UNLOCK_BUFFER(tcm_info->out);
 			mutex_unlock(&tcm_info->rw_mutex);
 			goto exit;
@@ -1894,7 +1998,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 					     msecs_to_jiffies(timeout_ms));
 
 	if (retval == 0) {
-		TPD_INFO("Timed out waiting for response (command 0x%02x)\n",
+		TP_INFO(tcm_info->tp_index, "Timed out waiting for response (command 0x%02x)\n",
 			 tcm_info->command);
 		report = tp_kzalloc(30, GFP_KERNEL);
 		if (report) {
@@ -1908,7 +2012,7 @@ static int syna_tcm_write_message(struct syna_tcm_data *tcm_info,
 
 		if (command_status != CMD_IDLE ||
 		    tcm_info->report_code == STATUS_ERROR) {
-			TPD_INFO("Failed to get valid response\n");
+			TP_INFO(tcm_info->tp_index, "Failed to get valid response\n");
 			report = tp_kzalloc(30, GFP_KERNEL);
 			if (report) {
 				snprintf(report, 30, "write_msg_err_resp%2x", tcm_info->command);
@@ -1928,7 +2032,7 @@ exit:
 
 		if (tcm_info->report_code == STATUS_ERROR) {
 			if (tcm_info->resp.data_length) {
-				TPD_INFO("Error code = 0x%02x\n",
+				TP_INFO(tcm_info->tp_index, "Error code = 0x%02x\n",
 					 tcm_info->resp.buf[0]);
 			}
 		}
@@ -1967,7 +2071,7 @@ get_app_info:
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_GET_APPLICATION_INFO));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_GET_APPLICATION_INFO));
 		goto exit;
 	}
 
@@ -1978,7 +2082,7 @@ get_app_info:
 			   MIN(sizeof(tcm_info->app_info), resp_length));
 
 	if (retval < 0) {
-		TPD_INFO("Failed to copy application info\n");
+		TP_INFO(tcm_info->tp_index, "Failed to copy application info\n");
 		goto exit;
 	}
 
@@ -2017,7 +2121,7 @@ static int syna_tcm_get_boot_info(struct syna_tcm_data *tcm_info)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_GET_BOOT_INFO));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_GET_BOOT_INFO));
 		goto exit;
 	}
 
@@ -2028,7 +2132,7 @@ static int syna_tcm_get_boot_info(struct syna_tcm_data *tcm_info)
 			   MIN(sizeof(tcm_info->boot_info), resp_length));
 
 	if (retval < 0) {
-		TPD_INFO("Failed to copy boot info\n");
+		TP_INFO(tcm_info->tp_index, "Failed to copy boot info\n");
 		goto exit;
 	}
 
@@ -2066,7 +2170,7 @@ static int syna_tcm_identify(struct syna_tcm_data *tcm_info, bool id)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_IDENTIFY));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_IDENTIFY));
 		goto exit;
 	}
 
@@ -2077,7 +2181,7 @@ static int syna_tcm_identify(struct syna_tcm_data *tcm_info, bool id)
 			   MIN(sizeof(tcm_info->id_info), resp_length));
 
 	if (retval < 0) {
-		TPD_INFO("Failed to copy identification info\n");
+		TP_INFO(tcm_info->tp_index, "Failed to copy identification info\n");
 		goto exit;
 	}
 
@@ -2130,14 +2234,14 @@ retry:
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_RUN_APPLICATION_FIRMWARE));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_RUN_APPLICATION_FIRMWARE));
 		goto exit;
 	}
 
 	retval = syna_tcm_identify(tcm_info, false);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to do identification\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do identification\n");
 		goto exit;
 	}
 
@@ -2182,14 +2286,14 @@ static int syna_tcm_run_bootloader_firmware(struct syna_tcm_data *tcm_info)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_RUN_BOOTLOADER_FIRMWARE));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_RUN_BOOTLOADER_FIRMWARE));
 		goto exit;
 	}
 
 	retval = syna_tcm_identify(tcm_info, false);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to do identification\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do identification\n");
 		goto exit;
 	}
 
@@ -2220,7 +2324,7 @@ static int syna_tcm_switch_mode(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_run_bootloader_firmware(tcm_info);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to switch to bootloader mode\n");
+			TP_INFO(tcm_info->tp_index, "Failed to switch to bootloader mode\n");
 			goto exit;
 		}
 
@@ -2230,14 +2334,14 @@ static int syna_tcm_switch_mode(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_run_application_firmware(tcm_info);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to switch to application mode\n");
+			TP_INFO(tcm_info->tp_index, "Failed to switch to application mode\n");
 			goto exit;
 		}
 
 		break;
 
 	default:
-		TPD_INFO("Invalid firmware mode\n");
+		TP_INFO(tcm_info->tp_index, "Invalid firmware mode\n");
 		retval = -EINVAL;
 		goto exit;
 	}
@@ -2268,10 +2372,10 @@ static int syna_tcm_get_dynamic_config(struct syna_tcm_data *tcm_info,
 
 	if (retval < 0 || resp_length < 2) {
 		retval = -EINVAL;
-		TPD_INFO("Failed to read dynamic config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to read dynamic config\n");
 		report = tp_kzalloc(30, GFP_KERNEL);
 		if (report) {
-			snprintf(report, 30, "get_dc_err_%2x", id);
+			snprintf(report, 30, "get_dc_err_%2x", (unsigned int)id);
 			tp_kfree((void **)&report);
 		}
 		goto exit;
@@ -2308,10 +2412,11 @@ static int syna_tcm_set_dynamic_config(struct syna_tcm_data *tcm_info,
 					RESPONSE_TIMEOUT_MS_SHORT);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_SET_DYNAMIC_CONFIG));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_SET_DYNAMIC_CONFIG));
 		report = tp_kzalloc(30, GFP_KERNEL);
 		if (report) {
-			snprintf(report, 30, "set_dc_err_%2x", id);
+			snprintf(report, 30, "set_dc_err_%2x", (unsigned int)id);
+			tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, report);
 			tp_kfree((void **)&report);
 		}
 		goto exit;
@@ -2330,7 +2435,12 @@ static int syna_tcm_sleep(struct syna_tcm_data *tcm_info, bool en)
 	unsigned int resp_buf_size = 0, resp_length = 0;
 	unsigned char command = en ? CMD_ENTER_DEEP_SLEEP : CMD_EXIT_DEEP_SLEEP;
 
-	TPD_INFO("%s: %s .\n", __func__, en ? "enter" : "exit");
+	TP_INFO(tcm_info->tp_index, "%s: %s .\n", __func__, en ? "enter" : "exit");
+
+	if (tcm_info->palm_hold_report == 1) {
+		tcm_info->palm_hold_report = 0;
+		TP_INFO(tcm_info->tp_index, "%s:set palm_hold_report = %d\n", __func__, tcm_info->palm_hold_report);
+	}
 
 	retval = syna_tcm_write_message(tcm_info,
 					command,
@@ -2342,7 +2452,7 @@ static int syna_tcm_sleep(struct syna_tcm_data *tcm_info, bool en)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n",
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n",
 			 en ? STR(CMD_ENTER_DEEP_SLEEP) : STR(CMD_EXIT_DEEP_SLEEP));
 		goto exit;
 	}
@@ -2374,9 +2484,9 @@ static int syna_report_refresh_switch(void *chip_data, int fps)
 		}
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_REPORT_FRE, send_value);
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic report frequence config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic report frequence config\n");
 		}
-		TPD_INFO("%s: refresh_switch: %d HZ %s!\n", __func__, fps, retval < 0 ? "failed" : "success");
+		TP_INFO(tcm_info->tp_index, "%s: refresh_switch: %d HZ %s!\n", __func__, fps, retval < 0 ? "failed" : "success");
 	}
 	return retval;
 }
@@ -2391,9 +2501,14 @@ static void syna_rate_white_list_ctrl(void *chip_data, int value)
 		return;
 	}
 
-	if (*tcm_info->in_suspend || tcm_info->game_mode) {
+	if (*tcm_info->in_suspend) {
 		return;
 	}
+
+	if (tcm_info->extreme_game_flag && tcm_info->game_mode) {
+		return;
+	}
+
 	switch (value) {
 	case 0: /* 60Hz */
 		send_value = 1;
@@ -2404,6 +2519,25 @@ static void syna_rate_white_list_ctrl(void *chip_data, int value)
 	case 2: /* 90Hz */
 		send_value = 3;
 		break;
+	/* TP RATE */
+	case SYNA_WRITE_RATE_120:
+		send_value = SYNA_120HZ_REPORT_RATE;
+		break;
+	case SYNA_WRITE_RATE_180:
+		send_value = SYNA_180HZ_REPORT_RATE;
+		break;
+	case SYNA_WRITE_RATE_240:
+		send_value = SYNA_240HZ_REPORT_RATE;
+		break;
+	case SYNA_WRITE_RATE_288:
+		send_value = SYNA_288HZ_REPORT_RATE;
+		break;
+	case SYNA_WRITE_RATE_360:
+		send_value = SYNA_360HZ_REPORT_RATE;
+		break;
+	case SYNA_WRITE_RATE_720:
+		send_value = SYNA_720HZ_REPORT_RATE;
+		break;
 	default:
 		return;
 	}
@@ -2412,9 +2546,9 @@ static void syna_rate_white_list_ctrl(void *chip_data, int value)
 					     DC_SET_REPORT_FRE,
 					     send_value);
 	if (retval < 0) {
-		TPD_INFO("Failed to set dynamic report frequence config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to set dynamic report frequence config\n");
 	}
-	TPD_INFO("%s: DC_SET_REPORT_FRE: %d  %s!\n",
+	TP_INFO(tcm_info->tp_index, "%s: DC_SET_REPORT_FRE: %d  %s!\n",
 		 __func__, send_value, retval < 0 ? "failed" : "success");
 }
 
@@ -2436,19 +2570,25 @@ static int syna_tcm_reset(void *chip_data)
 	unsigned int resp_length = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
+#ifndef CONFIG_ARCH_QTI_VM
 	syna_tcm_fw_update_in_bl(chip_data);
+#endif
 
 	mutex_lock(&tcm_info->reset_mutex);
 
+#ifndef CONFIG_ARCH_QTI_VM
 	synaptics_resetgpio_set(tcm_info->hw_res, false);
 	msleep(POWEWRUP_TO_RESET_TIME);
 	synaptics_resetgpio_set(tcm_info->hw_res, true);
 	msleep(RESET_TO_NORMAL_TIME);
 
 	retval = syna_tcm_identify(tcm_info, false);
+#else
+	retval = syna_tcm_identify(tcm_info, true);
+#endif
 
 	if (retval < 0) {
-		TPD_INFO("Failed to do identification\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do identification\n");
 		goto exit;
 	}
 
@@ -2466,18 +2606,18 @@ static int syna_tcm_reset(void *chip_data)
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_RUN_APPLICATION_FIRMWARE));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_RUN_APPLICATION_FIRMWARE));
 	}
 
 	retval = syna_tcm_identify(tcm_info, false);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to do identification\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do identification\n");
 		goto exit;
 	}
 
 dispatch_reset:
-	TPD_INFO("Firmware mode = 0x%02x, boot status 0x%02x, app status 0x%02x\n",
+	TP_INFO(tcm_info->tp_index, "Firmware mode = 0x%02x, boot status 0x%02x, app status 0x%02x\n",
 		 tcm_info->id_info.mode,
 		 tcm_info->boot_info.status,
 		 tcm_info->app_status);
@@ -2487,6 +2627,14 @@ exit:
 
 	tp_kfree((void **)&resp_buf);
 
+	if (tcm_info->tp_data_record_support && tcm_info->differ_read_every_frame) {
+		retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_DIFFER_READ, 1);
+
+		if (retval < 0) {
+			TP_INFO(tcm_info->tp_index, "Failed to set differ read true\n");
+		}
+	}
+
 	return retval;
 }
 
@@ -2495,25 +2643,37 @@ static int syna_get_chip_info(void *chip_data)
 	int ret = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
-	TPD_INFO("%s: Enter\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: Enter\n", __func__);
 
 	ret = syna_tcm_reset(tcm_info);  /* reset to get bootloader info or boot info*/
 
 	if (ret < 0) {
-		TPD_INFO("failed to reset device\n");
+		TP_INFO(tcm_info->tp_index, "failed to reset device\n");
 	}
 
 	ret = syna_get_default_report_config(tcm_info);
 
 	if (ret < 0) {
-		TPD_INFO("failed to get default report config\n");
+		TP_INFO(tcm_info->tp_index, "failed to get default report config\n");
 	}
+
+#ifdef CONFIG_ARCH_QTI_VM
+	ret = syna_set_normal_report_config(tcm_info);
+	if (ret < 0) {
+		TP_INFO(tcm_info->tp_index, "failed to set normal report config\n");
+	}
+	ret = syna_get_input_params(tcm_info);
+	if (ret < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to get input parameters\n");
+	}
+#endif
 
 	return 0;
 }
 
 static int syna_get_vendor(void *chip_data, struct panel_info *panel_data)
 {
+#ifndef CONFIG_REMOVE_OPLUS_FUNCTION
 	char manu_temp[MAX_DEVICE_MANU_LENGTH] = SYNAPTICS_PREFIX;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
@@ -2523,8 +2683,12 @@ static int syna_get_vendor(void *chip_data, struct panel_info *panel_data)
 		MAX_DEVICE_MANU_LENGTH);
 	strncpy(panel_data->manufacture_info.manufacture, manu_temp,
 		MAX_DEVICE_MANU_LENGTH);
-	TPD_INFO("chip_info->tp_type = %d, panel_data->fw_name = %s\n",
+
+	tcm_info->panel_data = panel_data;
+
+	TP_INFO(tcm_info->tp_index, "chip_info->tp_type = %d, panel_data->fw_name = %s\n",
 		 panel_data->tp_type, panel_data->fw_name);
+#endif
 	return 0;
 }
 
@@ -2550,6 +2714,11 @@ static int syna_get_touch_points(void *chip_data, struct point_info *points,
 
 	if (points == NULL) {
 		return tcm_info->obj_attention;
+	}
+
+	if (tcm_info->palm_hold_report) {
+		TPD_DEBUG("palm mode!\n");
+		return 0;
 	}
 
 	if (tcm_info->snr_read_support) {
@@ -2596,6 +2765,21 @@ static int syna_get_touch_points(void *chip_data, struct point_info *points,
 		}
 	}
 
+	if (!tcm_info->obj_attention && tcm_info->fp_area_rate.max) {
+		if (!tcm_info->fp_triggered) {
+			TPD_DETAIL("%s: points near fingerprint area but NOT triggered, area rate: %d-%d.\n",
+			       __func__, tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, HEALTH_REPORT_FOD_ABNORMAL);
+		} else {
+			TPD_DETAIL("fingerprint triggered area rate: %d-%d.\n",
+			       tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tcm_info->fp_triggered = 0;
+		}
+		tcm_info->fp_area_rate.min = 0;
+		tcm_info->fp_area_rate.max = 0;
+		tcm_info->fp_area_rate.recent = 0;
+	}
+
 	return tcm_info->obj_attention;
 }
 
@@ -2617,6 +2801,11 @@ static int syna_get_touch_points_auto(void *chip_data,
 
 	if (points == NULL) {
 		return tcm_info->obj_attention;
+	}
+
+	if (tcm_info->palm_hold_report) {
+		TPD_DEBUG("palm mode!\n");
+		return 0;
 	}
 
 	if (tcm_info->snr_read_support) {
@@ -2674,6 +2863,20 @@ static int syna_get_touch_points_auto(void *chip_data,
 		}
 	}
 
+	if (!tcm_info->obj_attention && tcm_info->fp_area_rate.max) {
+		if (!tcm_info->fp_triggered) {
+			TPD_DETAIL("%s: points near fingerprint area but NOT triggered, area rate: %d-%d.\n",
+			       __func__, tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, HEALTH_REPORT_FOD_ABNORMAL);
+		} else {
+			TPD_DETAIL("fingerprint triggered area rate: %d-%d.\n",
+			       tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tcm_info->fp_triggered = 0;
+		}
+		tcm_info->fp_area_rate.min = 0;
+		tcm_info->fp_area_rate.max = 0;
+		tcm_info->fp_area_rate.recent = 0;
+	}
 	return tcm_info->obj_attention;
 }
 
@@ -2730,44 +2933,84 @@ static int syna_get_touch_points_help(void *chip_data,
 		points[idx].status = 1;
 	}
 
+	if (!obj_attention && tcm_info->fp_area_rate.max) {
+		if (!tcm_info->fp_triggered) {
+			TPD_DETAIL("%s: points near fingerprint area but NOT triggered, area rate: %d-%d.\n",
+			       __func__, tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, HEALTH_REPORT_FOD_ABNORMAL);
+		} else {
+			TPD_DETAIL("fingerprint triggered area rate: %d-%d.\n",
+			       tcm_info->fp_area_rate.min, tcm_info->fp_area_rate.max);
+			tcm_info->fp_triggered = 0;
+		}
+		tcm_info->fp_area_rate.min = 0;
+		tcm_info->fp_area_rate.max = 0;
+		tcm_info->fp_area_rate.recent = 0;
+	}
 	return obj_attention;
 }
 
 static int syna_tcm_set_gesture_mode(struct syna_tcm_data *tcm_info, int enable)
 {
 	int retval = 0;
+	int state = tcm_info->gesture_state;
+	int config = 0xFFFF;
+
 	/*this command may take too much time, if needed can add flag to skip this */
-	TPD_INFO("%s: enable(%d), mask 0x%0X\n", __func__, enable,
-		 tcm_info->gesture_mask);
+	TP_INFO(tcm_info->tp_index, "%s: enable(%d), mask 0x%0X\n state 0x%x", __func__, enable, tcm_info->gesture_mask, state);
+
+	if (tcm_info->black_gesture_indep) {
+		if (enable) {
+			SET_GESTURE_BIT(state, DOU_TAP, config, 0)
+			SET_GESTURE_BIT(state, UP_VEE, config, 2)
+			SET_GESTURE_BIT(state, DOWN_VEE, config, 1)
+			SET_GESTURE_BIT(state, LEFT_VEE, config, 3)
+			SET_GESTURE_BIT(state, RIGHT_VEE, config, 4)
+			SET_GESTURE_BIT(state, CIRCLE_GESTURE, config, 5)
+			SET_GESTURE_BIT(state, DOU_SWIP, config, 6)
+			SET_GESTURE_BIT(state, LEFT2RIGHT_SWIP, config, 7)
+			SET_GESTURE_BIT(state, RIGHT2LEFT_SWIP, config, 8)
+			SET_GESTURE_BIT(state, UP2DOWN_SWIP, config, 9)
+			SET_GESTURE_BIT(state, DOWN2UP_SWIP, config, 10)
+			SET_GESTURE_BIT(state, M_GESTRUE, config, 11)
+			SET_GESTURE_BIT(state, W_GESTURE, config, 12)
+			SET_GESTURE_BIT(state, SINGLE_TAP, config, 13)
+			SET_GESTURE_BIT(state, HEART, config, 14)
+		} else {
+			config = 0x0;
+		}
+	}
+	TP_INFO(tcm_info->tp_index, "%s: gesture config:%x\n", __func__, config);
 
 	if (enable) {
 		retval = syna_tcm_sleep(tcm_info, false);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to exit sleep mode\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to exit sleep mode\n", __func__);
 			return retval;
 		}
+		msleep(5); /* delay 5ms*/
 
 		retval = syna_set_input_reporting(tcm_info, true);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to set input reporting\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to set input reporting\n", __func__);
 			return retval;
 		}
 
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_IN_WAKEUP_GESTURE_MODE, true);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to set dynamic gesture config\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to set dynamic gesture config\n", __func__);
 			return retval;
 		}
 
 		retval = syna_tcm_set_dynamic_config(tcm_info,
 						     DC_GESTURE_MASK,
-						     tcm_info->gesture_mask);
+						     config);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to set dynamic gesture mask config\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to set dynamic gesture mask config\n", __func__);
 			return retval;
 		}
 
@@ -2775,7 +3018,7 @@ static int syna_tcm_set_gesture_mode(struct syna_tcm_data *tcm_info, int enable)
 			retval = syna_tcm_enable_report(tcm_info, REPORT_LOG, false);
 
 			if (retval < 0) {
-				TPD_INFO("Failed to set disable log report\n");
+				TP_INFO(tcm_info->tp_index, "Failed to set disable log report\n");
 				return retval;
 			}
 		}
@@ -2788,24 +3031,49 @@ static void syna_tcm_enable_gesture_mask(void *chip_data, uint32_t enable)
 {
 	int retval = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+	int state = tcm_info->gesture_state;
+	int config = 0xFFFF;
 
 	/*this command may take too much time, if needed can add flag to skip this */
-	TPD_INFO("%s: enable(%d), mask 0x%0X\n", __func__, enable, tcm_info->gesture_mask);
+	TP_INFO(tcm_info->tp_index, "%s: enable(%d), mask 0x%0X\n", __func__, enable, tcm_info->gesture_mask);
+
+	if (tcm_info->black_gesture_indep) {
+		if (enable) {
+			SET_GESTURE_BIT(state, DOU_TAP, config, 0)
+			SET_GESTURE_BIT(state, UP_VEE, config, 2)
+			SET_GESTURE_BIT(state, DOWN_VEE, config, 1)
+			SET_GESTURE_BIT(state, LEFT_VEE, config, 3)
+			SET_GESTURE_BIT(state, RIGHT_VEE, config, 4)
+			SET_GESTURE_BIT(state, CIRCLE_GESTURE, config, 5)
+			SET_GESTURE_BIT(state, DOU_SWIP, config, 6)
+			SET_GESTURE_BIT(state, LEFT2RIGHT_SWIP, config, 7)
+			SET_GESTURE_BIT(state, RIGHT2LEFT_SWIP, config, 8)
+			SET_GESTURE_BIT(state, UP2DOWN_SWIP, config, 9)
+			SET_GESTURE_BIT(state, DOWN2UP_SWIP, config, 10)
+			SET_GESTURE_BIT(state, M_GESTRUE, config, 11)
+			SET_GESTURE_BIT(state, W_GESTURE, config, 12)
+			SET_GESTURE_BIT(state, SINGLE_TAP, config, 13)
+			SET_GESTURE_BIT(state, HEART, config, 14)
+		} else {
+			config = 0x0;
+		}
+	}
+	TP_INFO(tcm_info->tp_index, "%s: gesture config:%x\n", __func__, config);
 
 	if (enable) {
 		retval = syna_tcm_set_dynamic_config(tcm_info,
 						     DC_GESTURE_MASK,
-						     tcm_info->gesture_mask);
+						     config);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to set dynamic gesture mask config\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to set dynamic gesture mask config\n", __func__);
 		}
 
 	} else {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_GESTURE_MASK, 0x0000);
 
 		if (retval < 0) {
-			TPD_INFO("%s: Failed to set dynamic gesture mask config\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: Failed to set dynamic gesture mask config\n", __func__);
 		}
 	}
 }
@@ -2821,16 +3089,16 @@ static int syna_tcm_set_game_mode(struct syna_tcm_data *tcm_info, int enable)
 	tcm_info->game_mode = !!enable;
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_ERROR_PRIORITY, &regval);
 	if (retval < 0) {
-		TPD_INFO("Failed to get DC_ERROR_PRIORITY val\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get DC_ERROR_PRIORITY val\n");
 		return retval;
 	}
-	TPD_INFO("%s: enable[%d], now reg status[0x%x]\n", __func__, tcm_info->game_mode, regval);
+	TP_INFO(tcm_info->tp_index, "%s: enable[%d], now reg status[0x%x]\n", __func__, tcm_info->game_mode, regval);
 
 	if (enable) {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_ERROR_PRIORITY, regval|0x01);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic error priority config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic error priority config\n");
 			return retval;
 		}
 
@@ -2839,44 +3107,78 @@ static int syna_tcm_set_game_mode(struct syna_tcm_data *tcm_info, int enable)
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_NOISE_LENGTH, noise_length);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic noise length config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic noise length config\n");
 			return retval;
 		}*/
 
+		if (ts->edge_pull_out_support) {
+			syna_set_touch_direction(tcm_info, tcm_info->touch_direction);
+		}
+
+		if (tcm_info->extreme_game_report_rate) {
+			switch (ts->noise_level) {
+			case INTELLIGENT_GAME_MODE:
+				tcm_info->extreme_game_flag = false;
+				syna_rate_white_list_ctrl(tcm_info, ts->rate_ctrl_level);
+				break;
+			case EXTREME_GAME_MODE:
+				TP_INFO(tcm_info->tp_index, "%s:extreme_game_report_rate:%d", __func__, tcm_info->extreme_game_report_rate);
+				syna_rate_white_list_ctrl(tcm_info, tcm_info->extreme_game_report_rate);
+				tcm_info->extreme_game_flag = true;
+				break;
+			default:
+				tcm_info->extreme_game_flag = false;
+				syna_rate_white_list_ctrl(tcm_info, ts->rate_ctrl_level);
+				break;
+			}
+			return retval;
+		}
 
 		if (tcm_info->switch_game_rate_support) {/*tcm_info->game_rate_switch_support*/
-	    	switch (ts->noise_level) {
-	    	case 180:
-		    report_rate = 3;
-		    break;
-	    	case 300:
-		    report_rate = 1;
-		    break;
-	    	case 600:
-		    report_rate = 9;
-		    break;
-	    	default:
-		    report_rate = tcm_info->game_rate;
-		    break;
-	    	}
-	    	TPD_INFO("%s:set report_rate:%d", __func__, report_rate);
-		retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_REPORT_FRE, report_rate);
-		if (retval < 0) {
-		    TPD_INFO("Failed to set dynamic report frequence config\n");
-		    return retval;
+			switch (ts->noise_level) {
+			case SYNA_GET_RATE_120:
+				report_rate = SYNA_120HZ_REPORT_RATE;
+				break;
+			case SYNA_GET_RATE_240:
+				report_rate = SYNA_240HZ_REPORT_RATE;
+				break;
+			case SYNA_GET_RATE_360:
+				report_rate = SYNA_360HZ_REPORT_RATE;
+				break;
+			case SYNA_GET_RATE_720:
+				report_rate = SYNA_720HZ_REPORT_RATE;
+				break;
+			case SYNA_GET_RATE_180:
+				report_rate = SYNA_180HZ_REPORT_RATE;
+				break;
+			default:
+				report_rate = tcm_info->game_rate;
+				break;
+			}
+			TP_INFO(tcm_info->tp_index, "%s:set report_rate:%d", __func__, report_rate);
+			retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_REPORT_FRE, report_rate);
+			if (retval < 0) {
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic report frequence config\n");
+			return retval;
+			}
+		} else {
+			retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_REPORT_FRE, tcm_info->game_rate);
+			if (retval < 0) {
+				TP_INFO(tcm_info->tp_index, "Failed to set dynamic report frequence config\n");
+				return retval;
+			}
 		}
-	} else {
-	    retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_REPORT_FRE, tcm_info->game_rate);
-	    if (retval < 0) {
-		TPD_INFO("Failed to set dynamic report frequence config\n");
-                return retval;
-	    }
-	}
 	} else {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_ERROR_PRIORITY, regval&0xF0);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic error priority config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic error priority config\n");
+			return retval;
+		}
+
+		if (tcm_info->extreme_game_report_rate) {
+			tcm_info->extreme_game_flag = false;
+			syna_rate_white_list_ctrl(tcm_info, ts->rate_ctrl_level);
 			return retval;
 		}
 
@@ -2884,14 +3186,14 @@ static int syna_tcm_set_game_mode(struct syna_tcm_data *tcm_info, int enable)
 						     tcm_info->default_noise_length);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic noise length config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic noise length config\n");
 			return retval;
 		}*/
 
 		syna_report_refresh_switch(tcm_info, tcm_info->display_refresh_rate);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic report frequence config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic report frequence config\n");
 			return retval;
 		}
 	}
@@ -2908,7 +3210,7 @@ static int syna_tcm_set_high_frame_rate(void *chip_data, int level, int time)
 
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_ERROR_PRIORITY, &regval);
 	if (retval < 0) {
-		TPD_INFO("Failed to get high frame config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get high frame config\n");
 		return 0;
 	}
 
@@ -2921,18 +3223,18 @@ static int syna_tcm_set_high_frame_rate(void *chip_data, int level, int time)
 		}
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_ERROR_PRIORITY, regval|0x02|(temp_time << 8));
 		if (retval < 0) {
-			TPD_INFO("Failed to enable high frame config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to enable high frame config\n");
 			goto OUT;
 		}
 	} else {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_ERROR_PRIORITY, regval&0xfffd);
 		if (retval < 0) {
-			TPD_INFO("Failed to disable high frame config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to disable high frame config\n");
 			goto OUT;
 		}
 	}
 
-	TPD_INFO("synaptics %s high frame success lv to %d, time to %d",
+	TP_INFO(tcm_info->tp_index, "synaptics %s high frame success lv to %d, time to %d",
 		level > 0 ? "enable" : "disable", level, time);
 
 OUT:
@@ -2944,11 +3246,11 @@ static int syna_tcm_normal_mode(struct syna_tcm_data *tcm_info)
 {
 	int retval;
 
-	TPD_INFO("%s : enter\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s : enter\n", __func__);
 	retval = syna_set_input_reporting(tcm_info, false);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to set input reporting\n");
+		TP_INFO(tcm_info->tp_index, "Failed to set input reporting\n");
 		return retval;
 	}
 
@@ -2956,7 +3258,7 @@ static int syna_tcm_normal_mode(struct syna_tcm_data *tcm_info)
 					     false);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to set dynamic gesture config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to set dynamic gesture config\n");
 		return retval;
 	}
 
@@ -2965,7 +3267,7 @@ static int syna_tcm_normal_mode(struct syna_tcm_data *tcm_info)
 	retval = syna_tcm_enable_report(tcm_info, REPORT_LOG, true);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to set enable log report\n");
+		TP_INFO(tcm_info->tp_index, "Failed to set enable log report\n");
 		return retval;
 	}
 
@@ -2981,49 +3283,49 @@ static int syna_corner_limit_handle(struct syna_tcm_data *tcm_info, int enable)
 						  0x01);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_SEL, 0x0F);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_SEL\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_SEL\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_X, 0x0A);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_X\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_X\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_Y, 0x0A);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_Y\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_Y\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_DARK_ZONE_ENABLE, 0x03);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_X, 0xFF);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_Y, 0x44);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
 			return ret;
 		}
 
@@ -3032,7 +3334,7 @@ static int syna_corner_limit_handle(struct syna_tcm_data *tcm_info, int enable)
 						  0x01);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
 			return ret;
 		}
 
@@ -3053,28 +3355,28 @@ static int syna_corner_limit_handle(struct syna_tcm_data *tcm_info, int enable)
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_Y, 0x0A);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_Y\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_Y\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_DARK_ZONE_ENABLE, 0x0C);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_X, 0xFF);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_Y, 0x44);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
 			return ret;
 		}
 
@@ -3083,52 +3385,52 @@ static int syna_corner_limit_handle(struct syna_tcm_data *tcm_info, int enable)
 						  0x00);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_SEL, 0x03);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_SEL\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_SEL\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_X, 0x0A);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_X\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_X\n", __func__);
 			return ret;
 		}
 
 		/*ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_U, 0x32);*/
 		/*if (ret < 0) {*/
-		/*    TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_U\n", __func__);*/
+		/*    TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_U\n", __func__);*/
 		/*    return ret;*/
 		/*}*/
 		/*ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ABS_DARK_V, 0x64);*/
 		/*if (ret < 0) {*/
-		/*    TPD_INFO("%s:failed to set DC_GRIP_ABS_DARK_V\n", __func__);*/
+		/*    TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_ABS_DARK_V\n", __func__);*/
 		/*    return ret;*/
 		/*}*/
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_DARK_ZONE_ENABLE, 0x05);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_DARK_ZONE_ENABLE\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_X, 0x24);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_X\n", __func__);
 			return ret;
 		}
 
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_DARK_ZONE_Y, 0xF5);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set DC_GRIP_DARK_ZONE_Y\n", __func__);
 			return ret;
 		}
 	}
@@ -3139,7 +3441,7 @@ static int syna_corner_limit_handle(struct syna_tcm_data *tcm_info, int enable)
 static int syna_enable_edge_limit(struct syna_tcm_data *tcm_info, int enable)
 {
 	int ret = 0;
-	TPD_INFO("%s: enter\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: enter\n", __func__);
 
 	ret = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ENABLED, 0x01);
 
@@ -3202,9 +3504,10 @@ static int syna_mode_switch(void *chip_data, work_mode mode, int flag)
 
 	case MODE_CHARGE:
 		ret = syna_tcm_set_dynamic_config(tcm_info, DC_CHARGER_CONNECTED, flag ? 1 : 0);
+		tcm_info->charger_connected = flag;
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set charger mode\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set charger mode\n", __func__);
 		}
 
 		break;
@@ -3212,7 +3515,7 @@ static int syna_mode_switch(void *chip_data, work_mode mode, int flag)
 	case MODE_EDGE:
 		ret = syna_enable_edge_limit(tcm_info, flag);
 		if (ret < 0) {
-			TPD_INFO("%s: failed to enable edg limit.\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s: failed to enable edg limit.\n", __func__);
 		}
 
 		break;
@@ -3221,7 +3524,7 @@ static int syna_mode_switch(void *chip_data, work_mode mode, int flag)
 		ret = syna_tcm_set_game_mode(tcm_info, flag);
 
 		if (ret < 0) {
-			TPD_INFO("%s:failed to set game mode\n", __func__);
+			TP_INFO(tcm_info->tp_index, "%s:failed to set game mode\n", __func__);
 		}
 
 		break;
@@ -3230,12 +3533,14 @@ static int syna_mode_switch(void *chip_data, work_mode mode, int flag)
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int syna_ftm_process(void *chip_data)
 {
-	TPD_INFO("%s: go into sleep\n", __func__);
+	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+
+	TP_INFO(tcm_info->tp_index, "%s: go into sleep\n", __func__);
 	syna_get_chip_info(chip_data);
 	syna_mode_switch(chip_data, MODE_SLEEP, true);
 	return 0;
@@ -3304,23 +3609,29 @@ static fw_check_state syna_fw_check(void *chip_data,
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 	u16 config = 0;
 	int retval = 0;
+	int retfw = 0;
+#ifndef CONFIG_REMOVE_OPLUS_FUNCTION
 	int ver_len = 0;
 	char dev_version[MAX_DEVICE_VERSION_LENGTH] = {0};
+#endif
 
-	TPD_INFO("fw id %d, custom config id 0x%s\n", panel_data->tp_fw,
+	TP_INFO(tcm_info->tp_index, "fw id %d, custom config id 0x%s\n", panel_data->tp_fw,
 		 tcm_info->app_info.customer_config_id);
 
 	if (strlen(tcm_info->app_info.customer_config_id) == 0) {
 		return FW_ABNORMAL;
 	}
 
-	sscanf(tcm_info->app_info.customer_config_id, "%x", &panel_data->tp_fw);
+	retfw = sscanf(tcm_info->app_info.customer_config_id, "%x", &panel_data->tp_fw);
+
+	if (retfw != 1)
+		return FW_ABNORMAL;
 
 	if (panel_data->tp_fw == 0) {
 		return FW_ABNORMAL;
 	}
 
-
+#ifndef CONFIG_REMOVE_OPLUS_FUNCTION
 	if (panel_data->manufacture_info.version) {
 		if (panel_data->vid_len == 0) {
 			sprintf(panel_data->manufacture_info.version, "0x%s", tcm_info->app_info.customer_config_id);
@@ -3330,16 +3641,17 @@ static fw_check_state syna_fw_check(void *chip_data,
 				ver_len = MAX_DEVICE_VERSION_LENGTH - 4;
 			}
 			snprintf(dev_version, MAX_DEVICE_VERSION_LENGTH  - ver_len,
-				 "%s", tcm_info->app_info.customer_config_id);
+				 "%s", (char *)tcm_info->app_info.customer_config_id);
 			strlcpy(&panel_data->manufacture_info.version[ver_len],
 				dev_version, MAX_DEVICE_VERSION_LENGTH - ver_len);
 		}
 	}
+#endif
 
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_NOISE_LENGTH, &config);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to get default noise length\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get default noise length\n");
 		return FW_ABNORMAL;
 	}
 
@@ -3352,7 +3664,7 @@ static int syna_tcm_helper(struct syna_tcm_data *tcm_info)
 {
 	if (tcm_info->id_info.mode != MODE_APPLICATION
 	    && !mutex_is_locked(&tcm_info->reset_mutex)) {
-		TPD_INFO("%s: use helper\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s: use helper\n", __func__);
 		queue_work(tcm_info->helper_workqueue, &tcm_info->helper_work);
 	}
 
@@ -3369,7 +3681,7 @@ static void syna_tcm_helper_work(struct work_struct *work)
 	retval = syna_tcm_run_application_firmware(tcm_info);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to switch to app mode\n");
+		TP_INFO(tcm_info->tp_index, "Failed to switch to app mode\n");
 	}
 
 	mutex_unlock(&tcm_info->reset_mutex);
@@ -3391,13 +3703,13 @@ static int syna_tcm_async_work(void *chip_data)
 
 	retval = syna_tcm_identify(tcm_info, false);
 	if (retval < 0) {
-		TPD_INFO("Failed to do identification\n");
+		TP_INFO(tcm_info->tp_index, "Failed to do identification\n");
 		return retval;
 	}
 	tp_fw_auto_reset_handle(tcm_info->ts);
 	/*syna_set_trigger_reason(tcm_info, IRQ_IGNORE);
 	 syna_set_trigger_reason(tcm_info, IRQ_FW_AUTO_RESET);*/
-	TPD_INFO("%s  exit\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s  exit\n", __func__);
 	return 0;
 }
 
@@ -3426,7 +3738,7 @@ static int syna_tcm_enable_report(struct syna_tcm_data *tcm_info,
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write message %s\n",
+		TP_INFO(tcm_info->tp_index, "Failed to write message %s\n",
 			 enable ? STR(CMD_ENABLE_REPORT) : STR(CMD_DISABLE_REPORT));
 	}
 
@@ -3437,14 +3749,14 @@ static void syna_tcm_enable_fingerprint(void *chip_data, uint32_t enable)
 {
 	int retval = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
-	TPD_INFO("%s: enable(%d)\n", __func__, enable);
+	TP_INFO(tcm_info->tp_index, "%s: enable(%d)\n", __func__, enable);
 
 	if (enable) {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_TOUCH_HOLD,
 						     *tcm_info->in_suspend ? 0x01 : 0x02);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic touch and hold config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic touch and hold config\n");
 			return;
 		}
 
@@ -3452,7 +3764,7 @@ static void syna_tcm_enable_fingerprint(void *chip_data, uint32_t enable)
 						*tcm_info->in_suspend ? false : true);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set enable touch and hold report\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set enable touch and hold report\n");
 			return;
 		}*/
 
@@ -3460,14 +3772,14 @@ static void syna_tcm_enable_fingerprint(void *chip_data, uint32_t enable)
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_TOUCH_HOLD, 0x00);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set dynamic touch and hold config\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set dynamic touch and hold config\n");
 			return;
 		}
 
 		/*retval = syna_tcm_enable_report(tcm_info, REPORT_TOUCH_HOLD, false);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to set disable touch and hold report\n");
+			TP_INFO(tcm_info->tp_index, "Failed to set disable touch and hold report\n");
 			return;
 		}*/
 	}
@@ -3497,8 +3809,11 @@ static void syna_tcm_fingerprint_info(void *chip_data,
 		fp_tpinfo->touch_state = FINGERPRINT_DOWN_DETECT;
 		fp_tpinfo->x = fp_buf[0] | fp_buf[1] << 8;
 		fp_tpinfo->y = fp_buf[2] | fp_buf[3] << 8;
-		fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
-
+		if ((2 == tcm_info->normal_config_version) && tcm_info->fp_area_rate.recent) {
+			fp_tpinfo->area_rate = tcm_info->fp_area_rate.recent;
+		} else {
+			fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
+		}
 	} else if (touch_data->lpwg_gesture == TOUCH_HOLD_UP) {
 		fp_tpinfo->touch_state = FINGERPRINT_UP_DETECT;
 	}
@@ -3526,7 +3841,8 @@ static void syna_tcm_fingerprint_info_auto(void *chip_data,
 
 	if (tcm_info->report.buffer.data_length < 8
 	    && touch_data->lpwg_gesture == TOUCH_HOLD_DOWN) {
-		TPD_INFO("%s: invalid fingerprint buf length\n", __func__);
+		tp_healthinfo_report(tcm_info->monitor_data, HEALTH_REPORT, "fp_info_auto_err_buflen");
+		TP_INFO(tcm_info->tp_index, "%s: invalid fingerprint buf length\n", __func__);
 		return;
 	}
 
@@ -3544,12 +3860,20 @@ static void syna_tcm_fingerprint_info_auto(void *chip_data,
 		fp_tpinfo->touch_state = FINGERPRINT_DOWN_DETECT;
 		fp_tpinfo->x = fp_buf[0] | fp_buf[1] << 8;
 		fp_tpinfo->y = fp_buf[2] | fp_buf[3] << 8;
-		fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
+		if ((2 == tcm_info->normal_config_version) && tcm_info->fp_area_rate.recent) {
+			fp_tpinfo->area_rate = tcm_info->fp_area_rate.recent;
+		} else {
+			fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
+		}
 	} else if (touch_data->lpwg_gesture == TOUCH_HOLD_UP) {
 		fp_tpinfo->touch_state = FINGERPRINT_UP_DETECT;
 		fp_tpinfo->x = fp_buf[0] | fp_buf[1] << 8;
 		fp_tpinfo->y = fp_buf[2] | fp_buf[3] << 8;
-		fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
+		if ((2 == tcm_info->normal_config_version) && tcm_info->fp_area_rate.recent) {
+			fp_tpinfo->area_rate = tcm_info->fp_area_rate.recent;
+		} else {
+			fp_tpinfo->area_rate = fp_buf[4] | fp_buf[5] << 8;
+		}
 	}
 
 	if (max_x_inchip != max_x) {
@@ -3571,89 +3895,246 @@ static void syna_tcm_get_health_info(void *chip_data,
 					  tcm_info->report.buffer.buf;
 	int data_length = tcm_info->report.buffer.data_length;
 	struct health_info *health_local = &tcm_info->health_info;
-	int i = 0;
+	char *report = NULL;
+	int rx_compensated = -1;
+	/*int i = 0;*/
+	int retval = 0;
 
-	if (data_length < 20) {
-		TPD_INFO("%s: invalid health debug buf length\n", __func__);
+	if (!mon_data) {
+		TP_INFO(tcm_info->tp_index, "%s: invalid monitor_data\n", __func__);
 		return;
 	}
 
+	if (data_length < 20) {
+		TP_INFO(tcm_info->tp_index, "%s: invalid health debug buf length\n", __func__);
+		return;
+	}
 
+	if (health_info->grip_count != 0
+	    && health_local->grip_count != health_info->grip_count) {
+		tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_GRIP);
+	}
 
-	if (health_info->baseline_err != 0
-	    && health_local->baseline_err != health_info->baseline_err) {
+	if ((health_info->baseline_err != 0
+	    && health_local->baseline_err != health_info->baseline_err)
+	    || CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+		if (CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+			health_info->baseline_err = SIMULATE_DEBUG_INFO;
+		}
 		switch (health_info->baseline_err) {
-		case BASE_NEGATIVE_FINGER:
-			break;
-
-		case BASE_MUTUAL_SELF_CAP:
-			break;
-
-		case BASE_ENERGY_RATIO:
-			break;
-
-		case BASE_RXABS_BASELINE:
-			break;
-
-		case BASE_TXABS_BASELINE:
-			break;
-
+		case SIMULATE_DEBUG_INFO:
+			TP_INFO(tcm_info->tp_index, "Simulating Debug Info: baseline_err\n");
+			fallthrough;
+		case BASE_V2_CLASSIFIER_BL:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_classifier_bl");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_ABS_POSITIVITY_TX:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_txabs_baseline");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_ABS_POSITIVITY_RX:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_rxabs_baseline");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_ENERGY_RATIO:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_energy_ratio");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_BUMPINESS:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_bumpiness");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_NEGTIVE_FINGER:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_negative_finger");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_STD_ERROR:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_std");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_CRITI_ERROR:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_criti_err");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_STD_CRITI:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_std_criti");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_METAL_PLATE:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_metal_plate");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_WATER_DROP:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_water_drop");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		case BASE_V2_BIG_ABS_SHIFT:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, "base_big_abs_shift");
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		default:
 			break;
 		}
 	}
 
+	if ((health_info->noise_state >= 2
+		    && health_local->noise_state != health_info->noise_state)
+		    || CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+		if (tcm_info->charger_connected) {
+			TP_INFO(tcm_info->tp_index, "noise state charging:%u->%u\n", health_local->noise_state, health_info->noise_state);
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_NOISE_CHARGE);
+		} else {
+			TP_INFO(tcm_info->tp_index, "noise state:%u->%u\n", health_local->noise_state, health_info->noise_state);
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_NOISE);
+		}
+	}
 
-	if (health_info->shield_mode != 0
-	    && health_local->shield_mode != health_info->shield_mode) {
+	/* Rx Compensation */
+	if ((health_info->cid_im != 0
+		    && health_local->cid_im != health_info->cid_im)
+		    || CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+		rx_compensated = health_info->cid_im & 0x7F;
+		report = tp_kzalloc(30, GFP_KERNEL);
+		if (report) {
+			if (rx_compensated == 127) {
+				TP_INFO(tcm_info->tp_index, "RXs Broken But NO-Compensated\n");
+				snprintf(report, 30, "rx_broken_no_compensated");
+			} else {
+				TP_INFO(tcm_info->tp_index, "RX %d Broken and Compensated\n", rx_compensated);
+				snprintf(report, 30, "rx_%d_compensated", rx_compensated);
+			}
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, report);
+			tp_kfree((void **)&report);
+		}
+	}
+
+	if ((health_info->shield_mode != 0
+	    && health_local->shield_mode != health_info->shield_mode)
+	    || CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+		if (CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+			health_info->shield_mode = SIMULATE_DEBUG_INFO;
+		}
 		switch (health_info->shield_mode) {
+		case SIMULATE_DEBUG_INFO:
+			TP_INFO(tcm_info->tp_index, "Simulating Debug Info: shield_mode\n");
+			fallthrough;
 		case SHIELD_PALM:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_PALM);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case SHIELD_GRIP:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_EDGE);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case SHIELD_METAL:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_METAL);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case SHIELD_MOISTURE:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_WATER);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case SHIELD_ESD:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_SHIELD_ESD);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		default:
 			break;
 		}
 	}
 
-	if (health_info->reset_reason != 0) {
+	if ((health_info->reset_reason != 0
+	    && health_local->reset_reason != health_info->reset_reason)
+	    || CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+		if (CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+			health_info->reset_reason = SIMULATE_DEBUG_INFO;
+		}
 		switch (health_info->reset_reason) {
+		case SIMULATE_DEBUG_INFO:
+			TP_INFO(tcm_info->tp_index, "Simulating Debug Info: reset_reason\n");
+			fallthrough;
 		case RST_HARD:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_RST_HARD);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case RST_INST:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_RST_INST);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case RST_PARITY:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_RST_PARITY);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case RST_WD:
-			break;
-
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_RST_WD);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
 		case RST_OTHER:
+			tp_healthinfo_report(mon_data, HEALTH_REPORT, HEALTH_REPORT_RST_OTHER);
+			if (!CHK_BIT_NUM(mon_data->health_simulate_trigger, HEALTH_SIMULATE_BIT_IC_HEALTHINFO)) {
+				break;
+			}
+			fallthrough;
+		default:
 			break;
 		}
 	}
 
-	tp_memcpy(health_local, sizeof(struct health_info), health_info,
+	retval = tp_memcpy(health_local, sizeof(struct health_info), health_info,
 		  sizeof(struct health_info), sizeof(struct health_info));
-
-	if (tp_debug != 0) {
-		for (i = 0; i < data_length; i++) {
-			TPD_INFO("[0x%x], ", tcm_info->report.buffer.buf[i]);
-		}
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to copy health_info\n");
 	}
+
+	/*if (tp_debug != 0) {
+		for (i = 0; i < data_length; i++) {
+			TP_INFO(tcm_info->tp_index, "[0x%x], ", tcm_info->report.buffer.buf[i]);
+		}
+	}*/
+	TPD_DETAIL("syna_debug_info:[%*ph]\n", data_length, tcm_info->report.buffer.buf);
 }
 
 static int syna_tcm_erase_flash(struct syna_tcm_data *tcm_info,
@@ -3666,7 +4147,7 @@ static int syna_tcm_erase_flash(struct syna_tcm_data *tcm_info,
 	unsigned int resp_length = 0;
 	unsigned int cmd_length = 0;
 
-	TPD_INFO("start page %d, page count %d\n", page_start, page_count);
+	TP_INFO(tcm_info->tp_index, "start page %d, page count %d\n", page_start, page_count);
 
 	if (page_start > 0xff || page_count > 0xff) {
 		cmd_length = 4;
@@ -3685,7 +4166,7 @@ static int syna_tcm_erase_flash(struct syna_tcm_data *tcm_info,
 				     &resp_buf, &resp_buf_size, &resp_length, ERASE_FLASH_DELAY_MS);
 
 	if (ret < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_ERASE_FLASH));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_ERASE_FLASH));
 	}
 
 	tp_kfree((void **)&resp_buf);
@@ -3723,7 +4204,7 @@ static int syna_tcm_write_flash(struct syna_tcm_data *tcm_info,
 		retval = syna_tcm_alloc_mem(&out, xfer_len + 2);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to alloc memory\n");
+			TP_INFO(tcm_info->tp_index, "Failed to alloc memory\n");
 			break;
 		}
 
@@ -3739,7 +4220,7 @@ static int syna_tcm_write_flash(struct syna_tcm_data *tcm_info,
 				   xfer_len);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy write data\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy write data\n");
 			break;
 		}
 
@@ -3752,7 +4233,7 @@ static int syna_tcm_write_flash(struct syna_tcm_data *tcm_info,
 						WRITE_FLASH_DELAY_MS);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to write message %s, Addr 0x%08x, Len 0x%d\n",
+			TP_INFO(tcm_info->tp_index, "Failed to write message %s, Addr 0x%08x, Len 0x%d\n",
 				 STR(CMD_WRITE_FLASH), flash_addr, xfer_len);
 			break;
 		}
@@ -3789,7 +4270,7 @@ static fw_update_state syna_tcm_fw_update(void *chip_data,
 				memcpy(tcm_info->g_fw_buf, fw->data, fw->size);
 				tcm_info->g_fw_sta = true;
 			} else {
-				TPD_INFO("fw->size:%d is less than %d\n", fw->size, FW_BUF_SIZE);
+				TP_INFO(tcm_info->tp_index, "fw->size:%lu is less than %d\n", fw->size, FW_BUF_SIZE);
 				return FW_UPDATE_FATAL;
 			}
 		}
@@ -3822,17 +4303,17 @@ static fw_update_state syna_tcm_fw_update(void *chip_data,
 
 	image_fw_id = le4_to_uint(header->build_id);
 	device_fw_id = le4_to_uint(tcm_info->id_info.build_id);
-	TPD_INFO("image build id %d, device build id %d\n", image_fw_id, device_fw_id);
+	TP_INFO(tcm_info->tp_index, "image build id %d, device build id %d\n", image_fw_id, device_fw_id);
 
 	image_config_id = header->customer_config_id;
 	device_config_id = tcm_info->app_info.customer_config_id;
-	TPD_INFO("image config id 0x%s, device config id 0x%s\n", image_config_id,
+	TP_INFO(tcm_info->tp_index, "image config id 0x%s, device config id 0x%s\n", image_config_id,
 		 device_config_id);
 
 	if (!force) {
 		if ((image_fw_id == device_fw_id)
 		    && (strncmp(image_config_id, device_config_id, 16) == 0)) {
-			TPD_INFO("same firmware/config id, no need to update\n");
+			TP_INFO(tcm_info->tp_index, "same firmware/config id, no need to update\n");
 			return FW_NO_NEED_UPDATE;
 		}
 	}
@@ -3861,7 +4342,7 @@ static fw_update_state syna_tcm_fw_update(void *chip_data,
 	temp = le2_to_uint(tcm_info->boot_info.max_write_payload_size);
 	reflash_hcd.max_write_payload_size = temp;
 
-	TPD_INFO("Write block size %d, page size %d, payload_size %d\n",
+	TP_INFO(tcm_info->tp_index, "Write block size %d, page size %d, payload_size %d\n",
 		 reflash_hcd.write_block_size,
 		 reflash_hcd.page_size,
 		 reflash_hcd.max_write_payload_size);
@@ -3907,7 +4388,7 @@ static fw_update_state syna_tcm_fw_update(void *chip_data,
 	device_addr = temp * reflash_hcd.write_block_size;
 	device_size = le2_to_uint(tcm_info->app_info.app_config_size);
 
-	TPD_INFO("Config Device addr/size 0x%x/%d, flash addr/size 0x%x/%d\n",
+	TP_INFO(tcm_info->tp_index, "Config Device addr/size 0x%x/%d, flash addr/size 0x%x/%d\n",
 		 device_addr, device_size, flash_addr, size);
 
 	page_start = image_info.app_config.flash_addr / reflash_hcd.page_size;
@@ -3927,12 +4408,13 @@ static fw_update_state syna_tcm_fw_update(void *chip_data,
 		return FW_UPDATE_ERROR;
 	}
 
-	TPD_INFO("end of config update\n");
+	TP_INFO(tcm_info->tp_index, "end of config update\n");
 	/* update app config end */
 
 	return FW_UPDATE_SUCCESS;
 }
 
+#ifndef CONFIG_ARCH_QTI_VM
 static void syna_tcm_fw_update_in_bl(void *chip_data)
 {
 	int ret = -1;
@@ -3940,17 +4422,17 @@ static void syna_tcm_fw_update_in_bl(void *chip_data)
 
 
 	if (!tcm_info) {
-		TPD_INFO("%s: tcm_info is null\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s: tcm_info is null\n", __func__);
 		return;
 	}
 
 	if (!tcm_info->fwupdate_bootloader) {
-		TPD_INFO("%s not support.\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s not support.\n", __func__);
 		return;
 	}
 
 	if (*tcm_info->loading_fw) {
-		TPD_INFO("%s not support when TP loading fw.\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s not support when TP loading fw.\n", __func__);
 		return;
 	}
 
@@ -3958,11 +4440,13 @@ static void syna_tcm_fw_update_in_bl(void *chip_data)
 		tcm_info->firmware_mode_count = 0;
 		ret = syna_tcm_fw_update(tcm_info, NULL, 0);
 		if (ret > 0) {
-			TPD_INFO("g_fw_buf update failed!\n");
+			TP_INFO(tcm_info->tp_index, "g_fw_buf update failed!\n");
 		}
+		tp_healthinfo_report(tcm_info->monitor_data, HEALTH_FW_UPDATE, "syna_tcm_fw_update_new");
 	}
 	return;
 }
+#endif
 
 static int syna_get_gesture_info(void *chip_data, struct gesture_info *gesture)
 {
@@ -4043,10 +4527,16 @@ static int syna_get_gesture_info(void *chip_data, struct gesture_info *gesture)
 
 	case TOUCH_HOLD_DOWN:
 		gesture->gesture_type = FINGER_PRINTDOWN;
+		tcm_info->fp_triggered = true;
+		tcm_info->fp_area_rate.max = FP_AREA_RATE_BLACKSCREEN;
 		break;
 
 	case TOUCH_HOLD_UP:
 		gesture->gesture_type = FRINGER_PRINTUP;
+		tcm_info->fp_triggered = false;
+		tcm_info->fp_area_rate.min = 0;
+		tcm_info->fp_area_rate.max = 0;
+		tcm_info->fp_area_rate.recent = 0;
 		break;
 
 	case HEART_DETECT:
@@ -4101,12 +4591,28 @@ static int syna_get_gesture_info(void *chip_data, struct gesture_info *gesture)
 					   (touch_data->data_point[23] << 8));
 	}
 
-	if (gesture->gesture_type == SINGLE_TAP) {
+	if (gesture->gesture_type == SINGLE_TAP || gesture->gesture_type == DOU_TAP) {
 		gesture->Point_start.x = (touch_data->extra_gesture_info[0] | (touch_data->extra_gesture_info[1] << 8));
 		gesture->Point_start.y = (touch_data->extra_gesture_info[2] | (touch_data->extra_gesture_info[3] << 8));
 	}
 
-	TPD_INFO("lpwg:0x%x, type:%d, clockwise: %d, points: (%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)\n",
+	if (tcm_info->high_resolution_support_x16) {
+		TP_INFO(tcm_info->tp_index, "change gesture coordinate from 10x to 16x, enter!\n");
+		gesture->Point_start.x = gesture->Point_start.x * 16 / 10;
+		gesture->Point_start.y = gesture->Point_start.y * 16 / 10;
+		gesture->Point_end.x = gesture->Point_end.x * 16 / 10;
+		gesture->Point_end.y = gesture->Point_end.y * 16 / 10;
+		gesture->Point_1st.x = gesture->Point_1st.x * 16 / 10;
+		gesture->Point_1st.y = gesture->Point_1st.y * 16 / 10;
+		gesture->Point_2nd.x = gesture->Point_2nd.x * 16 / 10;
+		gesture->Point_2nd.y = gesture->Point_2nd.y * 16 / 10;
+		gesture->Point_3rd.x = gesture->Point_3rd.x * 16 / 10;
+		gesture->Point_3rd.y = gesture->Point_3rd.y * 16 / 10;
+		gesture->Point_4th.x = gesture->Point_4th.x * 16 / 10;
+		gesture->Point_4th.y = gesture->Point_4th.y * 16 / 10;
+	}
+
+	TP_INFO(tcm_info->tp_index, "lpwg:0x%x, type:%d, clockwise: %d, points: (%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)\n",
 		 touch_data->lpwg_gesture, gesture->gesture_type, gesture->clockwise, \
 		 gesture->Point_start.x, gesture->Point_start.y, \
 		 gesture->Point_end.x, gesture->Point_end.y, \
@@ -4162,7 +4668,7 @@ static int syna_get_gesture_info_auto(void *chip_data,
 		gesture->Point_4th.y    = (gesture->Point_4th.y * max_y) / max_y_inchip;
 	}
 
-	TPD_INFO("changed points: (%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)\n",
+	TP_INFO(tcm_info->tp_index, "changed points: (%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)(%d, %d)\n",
 		 gesture->Point_start.x, gesture->Point_start.y, \
 		 gesture->Point_end.x, gesture->Point_end.y, \
 		 gesture->Point_1st.x, gesture->Point_1st.y, \
@@ -4197,7 +4703,7 @@ static int testing_run_prod_test_item(struct syna_tcm_data *tcm_info,
 
 	if (tcm_info->id_info.mode != MODE_APPLICATION
 	    || tcm_info->app_status != APP_STATUS_OK) {
-		TPD_INFO("Application firmware not running\n");
+		TP_INFO(tcm_info->tp_index, "Application firmware not running\n");
 		return -ENODEV;
 	}
 
@@ -4206,7 +4712,7 @@ static int testing_run_prod_test_item(struct syna_tcm_data *tcm_info,
 	retval = syna_tcm_alloc_mem(&test_hcd->test_out, 1);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to allocate memory for test_hcd->test_out.buf\n");
+		TP_INFO(tcm_info->tp_index, "Failed to allocate memory for test_hcd->test_out.buf\n");
 		UNLOCK_BUFFER(test_hcd->test_out);
 		return retval;
 	}
@@ -4224,7 +4730,7 @@ static int testing_run_prod_test_item(struct syna_tcm_data *tcm_info,
 					RESPONSE_TIMEOUT_MS_LONG);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write command %s\n", STR(CMD_PRODUCTION_TEST));
+		TP_INFO(tcm_info->tp_index, "Failed to write command %s\n", STR(CMD_PRODUCTION_TEST));
 		UNLOCK_BUFFER(test_hcd->test_resp);
 		UNLOCK_BUFFER(test_hcd->test_out);
 		return retval;
@@ -4249,11 +4755,11 @@ static int syna_trx_short_test(struct seq_file *s, void *chip_data,
 
 	total_bits = syna_testdata->tx_num + syna_testdata->rx_num;
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_TRX_SHORT);
 
 	if (ret < 0) {
-		TPD_INFO("run trx short test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run trx short test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run trx short test failed.\n");
@@ -4265,7 +4771,7 @@ static int syna_trx_short_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "trx_short:\n");
 
@@ -4276,7 +4782,7 @@ static int syna_trx_short_test(struct seq_file *s, void *chip_data,
 
 		for (j = 0; j < 8; j++) {
 			if (1 == (u_data8 & (1 << j))) {
-				TPD_INFO("trx short test failed at %d bits.\n", checked_bits + 1);
+				TP_INFO(tcm_info->tp_index, "trx short test failed at %d bits.\n", checked_bits + 1);
 
 				if (!error_count) {
 					seq_printf(s, "trx short test failed at %d bits.\n", checked_bits + 1);
@@ -4316,11 +4822,11 @@ static int syna_trx_open_test(struct seq_file *s, void *chip_data,
 
 	total_bits = syna_testdata->tx_num + syna_testdata->rx_num;
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_TRX_OPEN);
 
 	if (ret < 0) {
-		TPD_INFO("run trx open test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run trx open test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run trx open test failed.\n");
@@ -4332,7 +4838,7 @@ static int syna_trx_open_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "tx_tx_open:\n");
 
@@ -4343,7 +4849,7 @@ static int syna_trx_open_test(struct seq_file *s, void *chip_data,
 
 		for (j = 0; j < 8; j++) {
 			if (0 == (u_data8 & (1 << j))) {
-				TPD_INFO("trx open test failed at %d bits.\n", checked_bits + 1);
+				TP_INFO(tcm_info->tp_index, "trx open test failed at %d bits.\n", checked_bits + 1);
 
 				if (!error_count) {
 					seq_printf(s, "trx open test failed at %d bits.\n", checked_bits + 1);
@@ -4383,11 +4889,11 @@ static int syna_trx_gndshort_test(struct seq_file *s, void *chip_data,
 
 	total_bits = syna_testdata->tx_num + syna_testdata->rx_num;
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_TRXGND_SHORT);
 
 	if (ret < 0) {
-		TPD_INFO("run trx gndshort test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run trx gndshort test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run trx gndshort test failed.\n");
@@ -4399,7 +4905,7 @@ static int syna_trx_gndshort_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "tx_tx_gndshort:\n");
 
@@ -4410,7 +4916,7 @@ static int syna_trx_gndshort_test(struct seq_file *s, void *chip_data,
 
 		for (j = 0; j < 8; j++) {
 			if (0 == (u_data8 & (1 << j))) {
-				TPD_INFO("trx gndshort test failed at %d bits.\n", checked_bits + 1);
+				TP_INFO(tcm_info->tp_index, "trx gndshort test failed at %d bits.\n", checked_bits + 1);
 
 				if (!error_count) {
 					seq_printf(s, "trx gndshort test failed at %d bits.\n", checked_bits + 1);
@@ -4455,7 +4961,7 @@ static int syna_full_rawcap_test(struct seq_file *s, void *chip_data,
 		p_mutual_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("full rawcap test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "full rawcap test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4467,11 +4973,11 @@ static int syna_full_rawcap_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_FULLRAW_CAP);
 
 	if (ret < 0) {
-		TPD_INFO("run full rawcap test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run full rawcap test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run full rawcap test failed.\n");
@@ -4483,7 +4989,7 @@ static int syna_full_rawcap_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp,  syna_testdata->length,
 		      syna_testdata->pos, "full_rawcap:");
 
@@ -4499,7 +5005,7 @@ static int syna_full_rawcap_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", u_data16);
 
 		if ((u_data16 < p_mutual_n[index]) || (u_data16 > p_mutual_p[index])) {
-			TPD_INFO("full rawcap test failed at node[%d]=%d [%d %d].\n", index, u_data16,
+			TP_INFO(tcm_info->tp_index, "full rawcap test failed at node[%d]=%d [%d %d].\n", index, u_data16,
 				 p_mutual_n[index], p_mutual_p[index]);
 
 			if (!error_count) {
@@ -4520,8 +5026,8 @@ static int syna_full_rawcap_test(struct seq_file *s, void *chip_data,
 	return error_count;
 }
 
-static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
-				 struct auto_testdata *syna_testdata, struct test_item_info *p_test_item_info)
+static int syna_delta_noise_test_freq(struct seq_file *s, void *chip_data,
+				 struct auto_testdata *syna_testdata, struct test_item_info *p_test_item_info, int freq)
 {
 	int16_t data16 = 0;
 	int i = 0, ret = 0, index = 0, byte_cnt = 2;
@@ -4539,7 +5045,7 @@ static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
 		p_mutual_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("delta noise test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "delta noise test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4551,11 +5057,11 @@ static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_DELTA_NOISE);
 
 	if (ret < 0) {
-		TPD_INFO("run delta noise rawcap test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run delta noise rawcap test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run delta noise test failed.\n");
@@ -4567,9 +5073,11 @@ static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
-		      syna_testdata->pos, "delta_noise:");
+		      syna_testdata->pos, "delta_noise:freq");
+	store_to_file(syna_testdata->fp, syna_testdata->length,
+		      syna_testdata->pos, "%d", freq);
 
 	for (i = 0; i < test_hcd->test_resp.data_length;) {
 		index = i / byte_cnt;
@@ -4583,7 +5091,7 @@ static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", data16);
 
 		if ((data16 < p_mutual_n[index]) || (data16 > p_mutual_p[index])) {
-			TPD_INFO("delta noise test failed at node[%d]=%d [%d %d].\n", index, data16,
+			TP_INFO(tcm_info->tp_index, "delta noise test failed at node[%d]=%d [%d %d].\n", index, data16,
 				 p_mutual_n[index], p_mutual_p[index]);
 
 			if (!error_count) {
@@ -4604,6 +5112,35 @@ static int syna_delta_noise_test(struct seq_file *s, void *chip_data,
 	return error_count;
 }
 
+#define MAX_FREQ_NOISE_TIMES      4
+#define DEFAULT_FREQ_NOISE_TIMES  0
+int syna_delta_noise_test(struct seq_file *s, void *chip_data,
+	struct auto_testdata *syna_testdata, struct test_item_info *p_test_item_info)
+{
+	int count = 0;
+	int retval = 0;
+	int error_count = 0;
+	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+
+	for (count = 0; count < MAX_FREQ_NOISE_TIMES; count++) {
+		TP_INFO(tcm_info->tp_index, "%s : Hop to frequency : %d\n", __func__, count);
+		retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING,
+			count);
+		if (retval < 0) {
+				error_count++;
+				TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
+		}
+		error_count = syna_delta_noise_test_freq(s, chip_data, syna_testdata, p_test_item_info, count);
+	}
+	retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING,
+		DEFAULT_FREQ_NOISE_TIMES);
+	if (retval < 0) {
+		error_count++;
+		TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
+	}
+	return error_count;
+}
+
 static int syna_hybrid_rawcap_test(struct seq_file *s, void *chip_data,
 				   struct auto_testdata *syna_testdata, struct test_item_info *p_test_item_info)
 {
@@ -4621,7 +5158,7 @@ static int syna_hybrid_rawcap_test(struct seq_file *s, void *chip_data,
 		p_hybridcap_p = (int32_t *)(syna_testdata->fw->data + item_header->top_limit_offset);
 		p_hybridcap_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 	} else {
-		TPD_INFO("hybrid_rawcap test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "hybrid_rawcap test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4633,11 +5170,11 @@ static int syna_hybrid_rawcap_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_HYBRIDRAW_CAP);
 
 	if (ret < 0) {
-		TPD_INFO("run hybrid rawcap test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run hybrid rawcap test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run hybrid rawcap test failed.\n");
@@ -4649,7 +5186,7 @@ static int syna_hybrid_rawcap_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "hybrid_rawcap:\n");
 
@@ -4660,7 +5197,7 @@ static int syna_hybrid_rawcap_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%08d, ", data32);
 
 		if ((data32 < p_hybridcap_n[index]) || (data32 > p_hybridcap_p[index])) {
-			TPD_INFO("hybrid rawcap test failed at node[%d]=%d [%d %d].\n", index, data32,
+			TP_INFO(tcm_info->tp_index, "hybrid rawcap test failed at node[%d]=%d [%d %d].\n", index, data32,
 				 p_hybridcap_n[index], p_hybridcap_p[index]);
 
 			if (!error_count) {
@@ -4699,7 +5236,7 @@ static int syna_rawcap_test(struct seq_file *s, void *chip_data,
 		p_mutual_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("raw cap test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "raw cap test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4711,11 +5248,11 @@ static int syna_rawcap_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_RAW_CAP);
 
 	if (ret < 0) {
-		TPD_INFO("run raw cap test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run raw cap test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run raw cap test failed.\n");
@@ -4727,7 +5264,7 @@ static int syna_rawcap_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "raw_cap:");
 
@@ -4743,7 +5280,7 @@ static int syna_rawcap_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", data16);
 
 		if ((data16 < p_mutual_n[index]) || (data16 > p_mutual_p[index])) {
-			TPD_INFO("rawcap test failed at node[%d]=%d [%d %d].\n", index, data16,
+			TP_INFO(tcm_info->tp_index, "rawcap test failed at node[%d]=%d [%d %d].\n", index, data16,
 				 p_mutual_n[index], p_mutual_p[index]);
 
 			if (!error_count) {
@@ -4782,7 +5319,7 @@ static int syna_trex_shortcustom_test(struct seq_file *s, void *chip_data,
 		p_tx_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("trex short custom test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "trex short custom test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4794,11 +5331,11 @@ static int syna_trex_shortcustom_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_TREXSHORT_CUSTOM);
 
 	if (ret < 0) {
-		TPD_INFO("run trex short custom test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run trex short custom test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run trex short custom test failed.\n");
@@ -4810,7 +5347,7 @@ static int syna_trex_shortcustom_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "trex_shorcustom:\n");
 
@@ -4821,7 +5358,7 @@ static int syna_trex_shortcustom_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", u_data16);
 
 		if ((u_data16 < p_tx_n[index]) || (u_data16 > p_tx_p[index])) {
-			TPD_INFO("trex_shorcustom test failed at node[%d]=%d [%d %d].\n", index,
+			TP_INFO(tcm_info->tp_index, "trex_shorcustom test failed at node[%d]=%d [%d %d].\n", index,
 				 u_data16, p_tx_n[index], p_tx_p[index]);
 
 			if (!error_count) {
@@ -4863,7 +5400,7 @@ static int syna_hybrid_diffcbc_test(struct seq_file *s, void *chip_data,
 					   item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("hybrid diffcbc test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "hybrid diffcbc test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4875,11 +5412,11 @@ static int syna_hybrid_diffcbc_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_HYBRIDABS_DIFF_CBC);
 
 	if (ret < 0) {
-		TPD_INFO("run hybrid diffcbc test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run hybrid diffcbc test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run hybrid diffcbc test failed.\n");
@@ -4891,7 +5428,7 @@ static int syna_hybrid_diffcbc_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "hybrid_diffwithcbc:\n");
 
@@ -4902,7 +5439,7 @@ static int syna_hybrid_diffcbc_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", u_data16);
 
 		if ((u_data16 < p_selfdata_n[index]) || (u_data16 > p_selfdata_p[index])) {
-			TPD_INFO("hybrid diffcbc test failed at node[%d]=%d [%d %d].\n", index,
+			TP_INFO(tcm_info->tp_index, "hybrid diffcbc test failed at node[%d]=%d [%d %d].\n", index,
 				 u_data16, p_selfdata_n[index], p_selfdata_p[index]);
 
 			if (!error_count) {
@@ -4929,6 +5466,7 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 	int16_t data16 = 0;
 	int i = 0, ret = 0, index = 0, byte_cnt = 2;
 	int error_count = 0;
+	uint8_t data_buf[64];
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 	struct auto_test_item_header *item_header = NULL;
 	int32_t *p_selfdata_p = NULL, *p_selfdata_n = NULL;
@@ -4944,7 +5482,7 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 					   item_header->floor_limit_offset);
 
 	} else {
-		TPD_INFO("hybrid abs noise test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "hybrid abs noise test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -4956,14 +5494,14 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 
 	syna_tcm_reset(tcm_info); /* before the test, need to reset the IC*/
 
 	ret = testing_run_prod_test_item(tcm_info, TYPE_HYBRIDABS_NOSIE);
 
 	if (ret < 0) {
-		TPD_INFO("run hybrid abs noise test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run hybrid abs noise test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run hybrid abs noise test failed.\n");
@@ -4975,7 +5513,7 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "hybrid_absnoise:\n");
 
@@ -4986,7 +5524,7 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%04d, ", data16);
 
 		if ((data16 < p_selfdata_n[index]) || (data16 > p_selfdata_p[index])) {
-			TPD_INFO("hybrid abs noise test failed at node[%d]=%d [%d %d].\n", index,
+			TP_INFO(tcm_info->tp_index, "hybrid abs noise test failed at node[%d]=%d [%d %d].\n", index,
 				 data16, p_selfdata_n[index], p_selfdata_p[index]);
 
 			if (!error_count) {
@@ -5002,8 +5540,25 @@ static int syna_hybrid_absnoise_test(struct seq_file *s, void *chip_data,
 
 	UNLOCK_BUFFER(test_hcd->test_resp);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
-		      syna_testdata->pos, "\n");
+		      syna_testdata->pos, "\n\n");
 
+	snprintf(data_buf, 32, "fwversion: 0x%s\n", tcm_info->app_info.customer_config_id);
+	tp_test_write(syna_testdata->fp, syna_testdata->length, data_buf, strlen(data_buf),
+			      syna_testdata->pos);
+
+	store_to_file(syna_testdata->fp, syna_testdata->length,
+		      syna_testdata->pos, "\n");
+#ifndef CONFIG_REMOVE_OPLUS_FUNCTION
+	snprintf(data_buf, 32, "ic: S3910, %s module\n", tcm_info->panel_data->manufacture_info.manufacture);
+	tp_test_write(syna_testdata->fp, syna_testdata->length, data_buf, strlen(data_buf),
+			      syna_testdata->pos);
+	store_to_file(syna_testdata->fp, syna_testdata->length,
+		      syna_testdata->pos, "\n");
+#endif
+	tp_test_write(syna_testdata->fp, syna_testdata->length, s->buf, strlen(s->buf),
+						syna_testdata->pos);
+	store_to_file(syna_testdata->fp, syna_testdata->length,
+						syna_testdata->pos, "\n");
 	return error_count;
 }
 
@@ -5024,7 +5579,7 @@ static int syna_hybrid_rawcap_test_ad(struct seq_file *s, void *chip_data,
 		p_hybridcap_p = (int32_t *)(syna_testdata->fw->data + item_header->top_limit_offset);
 		p_hybridcap_n = (int32_t *)(syna_testdata->fw->data + item_header->floor_limit_offset);
 	} else {
-		TPD_INFO("hybrid_rawcap test limit type(%2x) is wrong.\n",
+		TP_INFO(tcm_info->tp_index, "hybrid_rawcap test limit type(%2x) is wrong.\n",
 			 item_header->item_limit_type);
 
 		if (!error_count) {
@@ -5036,11 +5591,11 @@ static int syna_hybrid_rawcap_test_ad(struct seq_file *s, void *chip_data,
 		return error_count;
 	}
 
-	TPD_INFO("%s start.\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s start.\n", __func__);
 	ret = testing_run_prod_test_item(tcm_info, TYPE_HYBRIDRAW_CAP_WITH_AD + 24);
 
 	if (ret < 0) {
-		TPD_INFO("run hybrid rawcap test failed.\n");
+		TP_INFO(tcm_info->tp_index, "run hybrid rawcap test failed.\n");
 
 		if (!error_count) {
 			seq_printf(s, "run hybrid rawcap test failed.\n");
@@ -5052,7 +5607,7 @@ static int syna_hybrid_rawcap_test_ad(struct seq_file *s, void *chip_data,
 
 	LOCK_BUFFER(test_hcd->test_resp);
 	buf = test_hcd->test_resp.buf;
-	TPD_INFO("%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
+	TP_INFO(tcm_info->tp_index, "%s read data size:%d\n", __func__, test_hcd->test_resp.data_length);
 	store_to_file(syna_testdata->fp, syna_testdata->length,
 		      syna_testdata->pos, "hybrid_rawcap:\n");
 
@@ -5063,7 +5618,7 @@ static int syna_hybrid_rawcap_test_ad(struct seq_file *s, void *chip_data,
 			      syna_testdata->pos, "%08d, ", data32);
 
 		if ((data32 < p_hybridcap_n[index]) || (data32 > p_hybridcap_p[index])) {
-			TPD_INFO("hybrid rawcap test failed at node[%d]=%d [%d %d].\n", index, data32,
+			TP_INFO(tcm_info->tp_index, "hybrid rawcap test failed at node[%d]=%d [%d %d].\n", index, data32,
 				 p_hybridcap_n[index], p_hybridcap_p[index]);
 
 			if (!error_count) {
@@ -5135,7 +5690,7 @@ static int syna_tcm_collect_reports(struct syna_tcm_data *tcm_info,
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write message %s\n", STR(CMD_ENABLE_REPORT));
+		TP_INFO(tcm_info->tp_index, "Failed to write message %s\n", STR(CMD_ENABLE_REPORT));
 		completed = false;
 		goto exit;
 	}
@@ -5146,7 +5701,7 @@ static int syna_tcm_collect_reports(struct syna_tcm_data *tcm_info,
 					     msecs_to_jiffies(timeout));
 
 	if (retval == 0) {
-		TPD_INFO("Timed out waiting for report collection\n");
+		TP_INFO(tcm_info->tp_index, "Timed out waiting for report collection\n");
 
 	} else {
 		completed = true;
@@ -5164,7 +5719,7 @@ static int syna_tcm_collect_reports(struct syna_tcm_data *tcm_info,
 					0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to write message %s\n", STR(CMD_DISABLE_REPORT));
+		TP_INFO(tcm_info->tp_index, "Failed to write message %s\n", STR(CMD_DISABLE_REPORT));
 	}
 
 	if (!completed) {
@@ -5183,7 +5738,7 @@ static void syna_tcm_test_report(struct syna_tcm_data *tcm_info)
 	struct syna_tcm_test *test_hcd = tcm_info->test_hcd;
 
 	if (tcm_info->report.id != test_hcd->report_type) {
-		TPD_INFO("Not request report type\n");
+		TP_INFO(tcm_info->tp_index, "Not request report type\n");
 		return;
 	}
 
@@ -5195,7 +5750,7 @@ static void syna_tcm_test_report(struct syna_tcm_data *tcm_info)
 					    report_size * test_hcd->num_of_reports);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to allocate memory\n");
+			TP_INFO(tcm_info->tp_index, "Failed to allocate memory\n");
 			UNLOCK_BUFFER(test_hcd->report);
 			return;
 		}
@@ -5210,7 +5765,7 @@ static void syna_tcm_test_report(struct syna_tcm_data *tcm_info)
 				   tcm_info->report.buffer.data_length);
 
 		if (retval < 0) {
-			TPD_INFO("Failed to copy report data\n");
+			TP_INFO(tcm_info->tp_index, "Failed to copy report data\n");
 
 			UNLOCK_BUFFER(test_hcd->report);
 			return;
@@ -5241,7 +5796,7 @@ static void syna_tcm_format_print(struct seq_file *s,
 	rows = le2_to_uint(tcm_info->app_info.num_of_image_rows);
 	cols = le2_to_uint(tcm_info->app_info.num_of_image_cols);
 
-	TPD_INFO("report size:%d\n", test_hcd->report.data_length);
+	TP_INFO(tcm_info->tp_index, "report size:%d\n", test_hcd->report.data_length);
 
 	if (buffer == NULL) {
 		pdata_16 = (short *)&test_hcd->report.buf[0];
@@ -5320,11 +5875,15 @@ static void syna_tcm_format_unsigned_print(struct seq_file *s,
 	rows = le2_to_uint(tcm_info->app_info.num_of_image_rows);
 	cols = le2_to_uint(tcm_info->app_info.num_of_image_cols);
 
-	TPD_INFO("report size:%d\n", test_hcd->report.data_length);
+	TP_INFO(tcm_info->tp_index, "report size:%d\n", test_hcd->report.data_length);
 
 	if (buffer == NULL) {
-		pdata_16 = (unsigned short *)&test_hcd->report.buf[0];
-
+		if (!IS_ERR_OR_NULL(test_hcd->report.buf)) {
+			pdata_16 = (unsigned short *)&test_hcd->report.buf[0];
+		} else {
+			TP_INFO(tcm_info->tp_index, "%s:detect NULL pointer and return.\n", __func__);
+			return;
+		}
 	} else {
 		pdata_16 = (unsigned short *)buffer;
 	}
@@ -5363,11 +5922,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("gesture mode : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "gesture mode : ERROR\n");
 		seq_printf(s, "gesture mode : ERROR\n");
 
 	} else {
-		TPD_INFO("gesture mode : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "gesture mode : %d\n", config);
 		seq_printf(s, "gesture mode : %d\n", config);
 	}
 
@@ -5375,11 +5934,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("error priority(1:finger,0:error): ERROR\n");
+		TP_INFO(tcm_info->tp_index, "error priority(1:finger,0:error): ERROR\n");
 		seq_printf(s, "error priority(1:finger,0:error): ERROR\n");
 
 	} else {
-		TPD_INFO("error priority(1:finger,0:error): 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "error priority(1:finger,0:error): 0x%0X\n", config);
 		seq_printf(s, "error priority(1:finger,0:error): 0x%0X\n",
 			   config);
 	}
@@ -5388,11 +5947,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("noise length : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "noise length : ERROR\n");
 		seq_printf(s, "noise length : ERROR\n");
 
 	} else {
-		TPD_INFO("noise length : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "noise length : %d\n", config);
 		seq_printf(s, "noise length : %d\n", config);
 	}
 
@@ -5400,11 +5959,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("report rate(1:120HZ,2:240HZ,3:180HZ): ERROR\n");
+		TP_INFO(tcm_info->tp_index, "report rate(1:120HZ,2:240HZ,3:180HZ): ERROR\n");
 		seq_printf(s, "report rate(1:120HZ,2:240HZ,3:180HZ): ERROR\n");
 
 	} else {
-		TPD_INFO("report rate(1:120HZ,2:240HZ,3:180HZ): %d\n", config);
+		TP_INFO(tcm_info->tp_index, "report rate(1:120HZ,2:240HZ,3:180HZ): %d\n", config);
 		seq_printf(s, "report rate(1:120HZ,2:240HZ,3:180HZ): %d\n",
 			   config);
 	}
@@ -5413,22 +5972,22 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("charger mode : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "charger mode : ERROR\n");
 		seq_printf(s, "charger mode : ERROR\n");
 
 	} else {
-		TPD_INFO("charger mode : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "charger mode : %d\n", config);
 		seq_printf(s, "charger mode : %d\n", config);
 	}
 
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_TOUCH_HOLD, &config);
 
 	if (retval < 0) {
-		TPD_INFO("fingerprint mode : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "fingerprint mode : ERROR\n");
 		seq_printf(s, "fingerprint mode : ERROR\n");
 
 	} else {
-		TPD_INFO("fingerprint mode : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "fingerprint mode : %d\n", config);
 		seq_printf(s, "fingerprint mode : %d\n", config);
 	}
 
@@ -5436,11 +5995,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("grip enable : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "grip enable : ERROR\n");
 		seq_printf(s, "grip enable : ERROR\n");
 
 	} else {
-		TPD_INFO("grip enable : 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "grip enable : 0x%0X\n", config);
 		seq_printf(s, "grip enable : 0x%0X\n", config);
 	}
 
@@ -5449,11 +6008,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("grip direction(1:ver 0:hor): ERROR\n");
+		TP_INFO(tcm_info->tp_index, "grip direction(1:ver 0:hor): ERROR\n");
 		seq_printf(s, "grip direction(1:ver 0:hor): ERROR\n");
 
 	} else {
-		TPD_INFO("grip direction(1:ver 0:hor): 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "grip direction(1:ver 0:hor): 0x%0X\n", config);
 		seq_printf(s, "grip direction(0:ver 1:hor): 0x%0X\n", config);
 	}
 
@@ -5461,11 +6020,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("dark zone enable : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "dark zone enable : ERROR\n");
 		seq_printf(s, "dark zone enable : ERROR\n");
 
 	} else {
-		TPD_INFO("dark zone enable : 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "dark zone enable : 0x%0X\n", config);
 		seq_printf(s, "dark zone enable : 0x%0X\n", config);
 	}
 
@@ -5473,11 +6032,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("dark zone x : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "dark zone x : ERROR\n");
 		seq_printf(s, "dark zone x : ERROR\n");
 
 	} else {
-		TPD_INFO("dark zone x : 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "dark zone x : 0x%0X\n", config);
 		seq_printf(s, "dark zone x : 0x%0X\n", config);
 	}
 
@@ -5485,11 +6044,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("dark zone y : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "dark zone y : ERROR\n");
 		seq_printf(s, "dark zone y : ERROR\n");
 
 	} else {
-		TPD_INFO("dark zone y : 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "dark zone y : 0x%0X\n", config);
 		seq_printf(s, "dark zone y : 0x%0X\n", config);
 	}
 
@@ -5497,11 +6056,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("abs dark sel : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "abs dark sel : ERROR\n");
 		seq_printf(s, "abs dark sel : ERROR\n");
 
 	} else {
-		TPD_INFO("abs dark sel : 0x%0X\n", config);
+		TP_INFO(tcm_info->tp_index, "abs dark sel : 0x%0X\n", config);
 		seq_printf(s, "abs dark sel : 0x%0X\n", config);
 	}
 
@@ -5509,11 +6068,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("abs dark zone x : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "abs dark zone x : ERROR\n");
 		seq_printf(s, "abs dark zone x : ERROR\n");
 
 	} else {
-		TPD_INFO("abs dark zone x : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "abs dark zone x : %d\n", config);
 		seq_printf(s, "abs dark zone x : %d\n", config);
 	}
 
@@ -5521,11 +6080,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("abs dark zone y : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "abs dark zone y : ERROR\n");
 		seq_printf(s, "abs dark zone y : ERROR\n");
 
 	} else {
-		TPD_INFO("abs dark zone y : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "abs dark zone y : %d\n", config);
 		seq_printf(s, "abs dark zone y : %d\n", config);
 	}
 
@@ -5533,11 +6092,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("abs dark zone U : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "abs dark zone U : ERROR\n");
 		seq_printf(s, "abs dark zone U : ERROR\n");
 
 	} else {
-		TPD_INFO("abs dark zone U : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "abs dark zone U : %d\n", config);
 		seq_printf(s, "abs dark zone U : %d\n", config);
 	}
 
@@ -5545,11 +6104,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("abs dark zone V : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "abs dark zone V : ERROR\n");
 		seq_printf(s, "abs dark zone V : ERROR\n");
 
 	} else {
-		TPD_INFO("abs dark zone V : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "abs dark zone V : %d\n", config);
 		seq_printf(s, "abs dark zone V : %d\n", config);
 	}
 
@@ -5557,11 +6116,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("condtion zone : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "condtion zone : ERROR\n");
 		seq_printf(s, "condtion zone : ERROR\n");
 
 	} else {
-		TPD_INFO("condtion zone : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "condtion zone : %d\n", config);
 		seq_printf(s, "condtion zone : 0x%0X\n", config);
 	}
 
@@ -5569,11 +6128,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("special zone x : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "special zone x : ERROR\n");
 		seq_printf(s, "special zone x : ERROR\n");
 
 	} else {
-		TPD_INFO("special zone x : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "special zone x : %d\n", config);
 		seq_printf(s, "special zone x : %d\n", config);
 	}
 
@@ -5581,11 +6140,11 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("special zone y : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "special zone y : ERROR\n");
 		seq_printf(s, "special zone y : ERROR\n");
 
 	} else {
-		TPD_INFO("special zone y : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "special zone y : %d\n", config);
 		seq_printf(s, "special zone y : %d\n", config);
 	}
 
@@ -5593,15 +6152,15 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 					     &config);
 
 	if (retval < 0) {
-		TPD_INFO("special zone len : ERROR\n");
+		TP_INFO(tcm_info->tp_index, "special zone len : ERROR\n");
 		seq_printf(s, "special zone len : ERROR\n");
 
 	} else {
-		TPD_INFO("special zone len : %d\n", config);
+		TP_INFO(tcm_info->tp_index, "special zone len : %d\n", config);
 		seq_printf(s, "special zone len : %d\n", config);
 	}
 
-	TPD_INFO("Buid ID:%d, Custom ID:0x%s\n",
+	TP_INFO(tcm_info->tp_index, "Buid ID:%d, Custom ID:0x%s\n",
 		 le4_to_uint(tcm_info->id_info.build_id),
 		 tcm_info->app_info.customer_config_id);
 
@@ -5609,29 +6168,29 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 		   le4_to_uint(tcm_info->id_info.build_id),
 		   tcm_info->app_info.customer_config_id);
 
-	TPD_INFO("APP info : version:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : version:%d\n",
 		 le2_to_uint(tcm_info->app_info.version));
 
-	TPD_INFO("APP info : status:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : status:%d\n",
 		 le2_to_uint(tcm_info->app_info.status));
 
-	TPD_INFO("APP info : max_touch_report_config_size:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : max_touch_report_config_size:%d\n",
 		 le2_to_uint(tcm_info->app_info.max_touch_report_config_size));
-	TPD_INFO("APP info : max_touch_report_payload_size:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : max_touch_report_payload_size:%d\n",
 		 le2_to_uint(tcm_info->app_info.max_touch_report_payload_size));
 
-	TPD_INFO("APP info : customer_config_id:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : customer_config_id:%d\n",
 		 le2_to_uint(tcm_info->app_info.customer_config_id));
-	TPD_INFO("APP info : max_x:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : max_x:%d\n",
 		 le2_to_uint(tcm_info->app_info.max_x));
 
-	TPD_INFO("APP info : max_y:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : max_y:%d\n",
 		 le2_to_uint(tcm_info->app_info.max_y));
 
-	TPD_INFO("APP info : num_of_image_rows:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : num_of_image_rows:%d\n",
 		 le2_to_uint(tcm_info->app_info.num_of_image_rows));
 
-	TPD_INFO("APP info : num_of_image_cols:%d\n",
+	TP_INFO(tcm_info->tp_index, "APP info : num_of_image_cols:%d\n",
 		 le2_to_uint(tcm_info->app_info.num_of_image_cols));
 
 	seq_printf(s, "APP info : version:%d\n",
@@ -5665,21 +6224,34 @@ static void syna_main_register(struct seq_file *s, void *chip_data)
 
 	if (tcm_info->default_config.data_length > 0) {
 		seq_printf(s, "default_config:%*ph\n", tcm_info->default_config.data_length, tcm_info->default_config.buf);
-		TPD_INFO("default_config:%*ph\n", tcm_info->default_config.data_length, tcm_info->default_config.buf);
+		TP_INFO(tcm_info->tp_index, "default_config:%*ph\n", tcm_info->default_config.data_length, tcm_info->default_config.buf);
 	}
 
 	if (tcm_info->config.data_length > 0) {
 		seq_printf(s, "config:%*ph\n", tcm_info->config.data_length, tcm_info->config.buf);
-		TPD_INFO("config:%*ph\n", tcm_info->config.data_length, tcm_info->config.buf);
+		TP_INFO(tcm_info->tp_index, "config:%*ph\n", tcm_info->config.data_length, tcm_info->config.buf);
 	}
 
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &config);
 	if (retval < 0) {
-		TPD_INFO("Failed to get temperature config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get temperature config\n");
 	}
 	seq_printf(s, "DC_LOW_TEMP_ENABLE:%d\n", config);
-	TPD_INFO("DC_LOW_TEMP_ENABLE:%d\n", config);
-	return;
+	TP_INFO(tcm_info->tp_index, "DC_LOW_TEMP_ENABLE:%d\n", config);
+
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING, &config);
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to get DC_FREQUENCE_HOPPING config\n");
+	}
+	seq_printf(s, "DC_FREQUENCE_HOPPING:%d\n", config);
+	TP_INFO(tcm_info->tp_index, "DC_FREQUENCE_HOPPING:%d\n", config);
+
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_GESTURE_MASK, &config);
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to get DC_GESTURE_MASK config\n");
+	}
+	seq_printf(s, "DC_GESTURE_MASK:%d\n", config);
+	TP_INFO(tcm_info->tp_index, "DC_GESTURE_MASK:%d\n", config);
 }
 
 static void syna_delta_read(struct seq_file *s, void *chip_data)
@@ -5690,7 +6262,7 @@ static void syna_delta_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 1);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to exit doze\n");
+		TP_INFO(tcm_info->tp_index, "Failed to exit doze\n");
 	}
 
 	msleep(20); /* delay 20ms*/
@@ -5708,7 +6280,7 @@ static void syna_delta_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to switch to normal\n");
+		TP_INFO(tcm_info->tp_index, "Failed to switch to normal\n");
 	}
 
 	return;
@@ -5722,7 +6294,7 @@ static void syna_baseline_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 1);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to exit doze\n");
+		TP_INFO(tcm_info->tp_index, "Failed to exit doze\n");
 	}
 
 	msleep(20); /* delay 20ms*/
@@ -5740,7 +6312,7 @@ static void syna_baseline_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to switch to normal\n");
+		TP_INFO(tcm_info->tp_index, "Failed to switch to normal\n");
 	}
 
 	return;
@@ -5758,7 +6330,7 @@ static  void syna_reserve_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 1);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to exit doze\n");
+		TP_INFO(tcm_info->tp_index, "Failed to exit doze\n");
 	}
 
 	msleep(20); /* delay 20ms*/
@@ -5776,9 +6348,37 @@ static  void syna_reserve_read(struct seq_file *s, void *chip_data)
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 0);
 
 	if (retval < 0) {
-		TPD_INFO("Failed to switch to normal\n");
+		TP_INFO(tcm_info->tp_index, "Failed to switch to normal\n");
 	}
 
+	return;
+}
+
+static void syna_tp_limit_data_write(void *chip_data, int count)
+{
+	int retval;
+	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+
+	if (!tcm_info->tp_data_record_support) {
+		TP_INFO(tcm_info->tp_index, "tp data record not support! \n");
+		return;
+	}
+	if (count) {
+		retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_DIFFER_READ, 1);
+
+		if (retval < 0) {
+			TP_INFO(tcm_info->tp_index, "Failed to set differ read true\n");
+		}
+		tcm_info->differ_read_every_frame = true;
+	} else {
+		retval = syna_tcm_set_dynamic_config(tcm_info, DC_SET_DIFFER_READ, 0);
+
+		if (retval < 0) {
+			TP_INFO(tcm_info->tp_index, "Failed to set differ read false\n");
+		}
+		tcm_info->differ_read_every_frame = false;
+	}
+	TP_INFO(tcm_info->tp_index, "tp data record set to %u\n", count);
 	return;
 }
 
@@ -5801,7 +6401,7 @@ static void syna_delta_snr_read(struct seq_file *s, void *chip_data, uint32_t co
 	for (i = 0; i < count; i++) {
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 1);
 		if (retval < 0) {
-			TPD_INFO("Failed to exit doze\n");
+			TP_INFO(tcm_info->tp_index, "Failed to exit doze\n");
 		}
 
 		msleep(20); /* delay 20ms */
@@ -5817,7 +6417,7 @@ static void syna_delta_snr_read(struct seq_file *s, void *chip_data, uint32_t co
 		/*set normal doze*/
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 0);
 		if (retval < 0) {
-			TPD_INFO("Failed to switch to normal\n");
+			TP_INFO(tcm_info->tp_index, "Failed to switch to normal\n");
 		}
 	}
 	for (i = 0; i < 10; i++) {
@@ -5838,9 +6438,11 @@ static void syna_delta_snr_read(struct seq_file *s, void *chip_data, uint32_t co
 static struct debug_info_proc_operations syna_debug_proc_ops = {
 	.delta_read    = syna_delta_read,
 	.baseline_read = syna_baseline_read,
+    .baseline_blackscreen_read = syna_baseline_read,
 	.main_register_read = syna_main_register,
 	.reserve_read  = syna_reserve_read,
 	.delta_snr_read = syna_delta_snr_read,
+	.tp_limit_data_write = syna_tp_limit_data_write,
 };
 
 static void syna_start_aging_test(void *chip_data)
@@ -5848,10 +6450,10 @@ static void syna_start_aging_test(void *chip_data)
 	int ret = -1;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
-	TPD_INFO("%s: start aging test \n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: start aging test \n", __func__);
 	ret = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 1);
 	if (ret < 0) {
-		TPD_INFO("%s: start aging test failed!\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s: start aging test failed!\n", __func__);
 	}
 }
 
@@ -5860,10 +6462,10 @@ static void syna_finish_aging_test(void *chip_data)
 	int ret = -1;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
-	TPD_INFO("%s: finish aging test \n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s: finish aging test \n", __func__);
 	ret = syna_tcm_set_dynamic_config(tcm_info, DC_NO_DOZE, 0);
 	if (ret < 0) {
-		TPD_INFO("%s: finish aging test failed!\n", __func__);
+		TP_INFO(tcm_info->tp_index, "%s: finish aging test failed!\n", __func__);
 	}
 }
 
@@ -5878,11 +6480,12 @@ static int syna_device_report_touch(struct syna_tcm_data *tcm_info)
 	int ret = syna_parse_report(tcm_info);
 
 	if (ret < 0) {
-		TPD_INFO("Failed to parse report\n");
+		TP_INFO(tcm_info->tp_index, "Failed to parse report\n");
 		return -EINVAL;
 	}
 
 	syna_set_trigger_reason(tcm_info, IRQ_TOUCH);
+
 	return 0;
 }
 
@@ -5890,6 +6493,8 @@ static int syna_resume_prepare(void *chip_data)
 {
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
+	tcm_info->palm_hold_report = 0;
+	TPD_DEBUG("%s: clear palm_hold_report.\n", __func__);
 	reinit_completion(&tcm_info->resume_complete);
 	return 0;
 }
@@ -5901,21 +6506,53 @@ static int syna_specific_resume_operate(void *chip_data, struct specific_resume_
 
 	tcm_info->suspend_state = p->suspend_state;
 	tcm_info->in_test_process = p->in_test_process;
-	TPD_INFO("enter state : %d,in_test_process:%d\n", __func__, p->suspend_state, p->in_test_process);
+	TP_INFO(tcm_info->tp_index, "%s : enter state : %d,in_test_process:%d\n", __func__, p->suspend_state, p->in_test_process);
 
 	timed_out = wait_for_completion_timeout(&tcm_info->resume_complete, 0.5 * HZ); /* wait resume over for 0.5s */
 
 	if ((0 == timed_out) || (tcm_info->resume_complete.done)) {
-		TPD_INFO("resume state, timed_out:%d, done:%d\n", timed_out, tcm_info->resume_complete.done);
+		TP_INFO(tcm_info->tp_index, "resume state, timed_out:%d, done:%d\n", timed_out, tcm_info->resume_complete.done);
 	}
 	return 0;
 }
 
 static void syna_set_touch_direction(void *chip_data, uint8_t dir)
 {
+	int retval = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+	struct touchpanel_data *ts = spi_get_drvdata(tcm_info->client);
 
 	tcm_info->touch_direction = dir;
+	if (ts->edge_pull_out_support) {
+		if (tcm_info->game_mode) {
+			switch (tcm_info->touch_direction) {
+			case LANDSCAPE_SCREEN_90:
+				retval = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL, EDGE_STRETCH_RIGHT);
+				if (retval < 0) {
+					TP_INFO(tcm_info->tp_index, "Failed to set touch direction\n");
+				}
+				break;
+			case LANDSCAPE_SCREEN_270:
+				retval = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL, EDGE_STRETCH_LEFT);
+				if (retval < 0) {
+					TP_INFO(tcm_info->tp_index, "Failed to set touch direction\n");
+				}
+				break;
+			default:
+				retval = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL, EDGE_STRETCH_OFF);
+				if (retval < 0) {
+					TP_INFO(tcm_info->tp_index, "Failed to set touch direction\n");
+				}
+				break;
+			}
+			TP_INFO(tcm_info->tp_index, "set touch direction = 0x%02x!\n", tcm_info->touch_direction);
+		} else {
+			retval = syna_tcm_set_dynamic_config(tcm_info, DC_GRIP_ROATE_TO_HORIZONTAL_LEVEL, EDGE_STRETCH_OFF);
+			if (retval < 0) {
+				TP_INFO(tcm_info->tp_index, "Failed to set touch direction\n");
+			}
+		}
+	}
 }
 
 static uint8_t syna_get_touch_direction(void *chip_data)
@@ -5929,40 +6566,40 @@ static void syna_freq_hop_trigger(void *chip_data)
 {
 	int retval = 0;
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
-	TPD_INFO("%s : send cmd to tigger frequency hopping here!!!\n", __func__);
+	TP_INFO(tcm_info->tp_index, "%s : send cmd to tigger frequency hopping here!!!\n", __func__);
 
 	switch (tcm_info->freq_point) {
 	case 0:
-		TPD_INFO("%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
+		TP_INFO(tcm_info->tp_index, "%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING, tcm_info->freq_point);
 		if (retval < 0) {
-			TPD_INFO("Failed to hop frequency\n");
+			TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
 		}
 		tcm_info->freq_point = 1;
 		break;
 
 	case 1:
-		TPD_INFO("%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
+		TP_INFO(tcm_info->tp_index, "%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING, tcm_info->freq_point);
 		if (retval < 0) {
-			TPD_INFO("Failed to hop frequency\n");
+			TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
 		}
 		tcm_info->freq_point = 2;
 		break;
 
 	case 2:
-		TPD_INFO("%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
+		TP_INFO(tcm_info->tp_index, "%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING, tcm_info->freq_point);
 		if (retval < 0) {
-			TPD_INFO("Failed to hop frequency\n");
+			TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
 		}
 		tcm_info->freq_point = 3;
 		break;
 	case 3:
-		TPD_INFO("%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
+		TP_INFO(tcm_info->tp_index, "%s : Hop to frequency : %d\n", __func__, tcm_info->freq_point);
 		retval = syna_tcm_set_dynamic_config(tcm_info, DC_FREQUENCE_HOPPING, tcm_info->freq_point);
 		if (retval < 0) {
-			TPD_INFO("Failed to hop frequency\n");
+			TP_INFO(tcm_info->tp_index, "Failed to hop frequency\n");
 		}
 		tcm_info->freq_point = 4;
 		break;
@@ -5994,6 +6631,39 @@ static void syna_freq_hop_trigger(void *chip_data)
 	default:
 		break;
 	}
+}
+
+static void syna_force_water_mode(void *chip_data, bool enable)
+{
+	int retval = 0;
+	unsigned short regval = 0;
+	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
+  
+	TP_INFO(tcm_info->tp_index, "%s: %s force water mode.\n", __func__, enable ? "Enter" : "Exit");
+  
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to get water mode config\n");
+		return;
+	}
+  
+	if (enable)  {
+		regval = regval | 0x04;
+	} else {
+		regval = regval & 0xfb;
+	}
+	retval = syna_tcm_set_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, regval);
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to set water mode config\n");
+		return;
+	}
+  
+	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
+	if (retval < 0) {
+		TP_INFO(tcm_info->tp_index, "Failed to get water mode config\n");
+		return;
+	}
+  	TP_INFO(tcm_info->tp_index, "%s: now reg_val=0x%x", __func__, regval);
 }
 
 static int syna_tcm_smooth_lv_set(void *chip_data, int level)
@@ -6085,7 +6755,7 @@ static int syna_tcm_send_temperature(void *chip_data, int temp, bool status)
 	}
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
 	if (retval < 0) {
-		TPD_INFO("Failed to get temperature config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get temperature config\n");
 		return 0;
 	}
 
@@ -6097,16 +6767,16 @@ static int syna_tcm_send_temperature(void *chip_data, int temp, bool status)
 	}
 	retval = syna_tcm_set_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, temp_mode);
 	if (retval < 0) {
-		TPD_INFO("Failed to set temperature config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to set temperature config\n");
 		return 0;
 	}
 
 	retval = syna_tcm_get_dynamic_config(tcm_info, DC_LOW_TEMP_ENABLE, &regval);
 	if (retval < 0) {
-		TPD_INFO("Failed to get temperature config\n");
+		TP_INFO(tcm_info->tp_index, "Failed to get temperature config\n");
 		return 0;
 	}
-	TPD_INFO("OK synaptics temperature to %d, now reg_val:%d", temp_mode, regval);
+	TP_INFO(tcm_info->tp_index, "OK synaptics temperature to %d, now reg_val:%d", temp_mode, regval);
 
 	return retval;
 }
@@ -6115,7 +6785,7 @@ static void syna_set_gesture_state(void *chip_data, int state)
 {
 	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)chip_data;
 
-	TPD_INFO("%s:state:%d!\n", __func__, state);
+	TP_INFO(tcm_info->tp_index, "%s:state:%d!\n", __func__, state);
 	tcm_info->gesture_state = state;
 }
 
@@ -6138,6 +6808,7 @@ static struct oplus_touchpanel_operations syna_tcm_ops = {
 	.set_touch_direction		= syna_set_touch_direction,
 	.get_touch_direction		= syna_get_touch_direction,
 	.freq_hop_trigger		= syna_freq_hop_trigger,
+	.force_water_mode		= syna_force_water_mode,
 	.enable_gesture_mask		= syna_tcm_enable_gesture_mask,
 	.speed_up_resume_prepare	= syna_resume_prepare,
 	.specific_resume_operate	= syna_specific_resume_operate,
@@ -6174,6 +6845,8 @@ static void init_chip_dts(struct device *dev, void *chip_data)
 	np = dev->of_node;
 
 	tcm_info->snr_read_support = of_property_read_bool(np, "snr_read_support");
+	tcm_info->tp_data_record_support = of_property_read_bool(np, "tp_data_record_support");
+	tcm_info->high_resolution_support_x16 = of_property_read_bool(np, "high_resolution_support_x16");
 
 	chip_np = of_get_child_by_name(np, "S3910");
 
@@ -6203,20 +6876,20 @@ static void init_chip_dts(struct device *dev, void *chip_data)
 	if (rc < 0) {
 		tcm_info->display_refresh_rate = 60;
 	}
-	TPD_INFO("default rate %d\n", tcm_info->display_refresh_rate);
+	TP_INFO(tcm_info->tp_index, "default rate %d\n", tcm_info->display_refresh_rate);
 
 	rc = of_property_read_u32(chip_np, "report_rate_game_value", &ret);
 	if (rc < 0) {
 		ret = 1;
 	}
-	TPD_INFO("default game value %d\n", ret);
+	TP_INFO(tcm_info->tp_index, "default game value %d\n", ret);
 	tcm_info->game_rate = ret;
 	tcm_info->switch_game_rate_support = of_property_read_bool(chip_np, "switch_report_rate");
 	rc = of_property_read_u32(chip_np, "default_gesture_mask", &ret);
 	if (rc < 0) {
 		ret = 0xFFFF;
 	}
-	TPD_INFO("default gesture mask value %d\n", ret);
+	TP_INFO(tcm_info->tp_index, "default gesture mask value %d\n", ret);
 	tcm_info->default_gesture_mask = (uint16_t)(ret & 0xFFFF);
 	tcm_info->gesture_mask = tcm_info->default_gesture_mask;
 	rc = of_property_count_u32_elems(chip_np, "fps_report_rate");
@@ -6226,11 +6899,11 @@ static void init_chip_dts(struct device *dev, void *chip_data)
 		&& !(tcm_info->fps_report_rate_num % 2)) {
 		rc = of_property_read_u32_array(chip_np, "fps_report_rate", temp_array, tcm_info->fps_report_rate_num);
 		if (rc) {
-			TPD_INFO("fps_report_rate not specified %d\n", rc);
+			TP_INFO(tcm_info->tp_index, "fps_report_rate not specified %d\n", rc);
 		} else {
 			for (i = 0; i < tcm_info->fps_report_rate_num; i++) {
 				tcm_info->fps_report_rate_array[i] = temp_array[i];
-				TPD_INFO("fps_report_rate is: %d\n", tcm_info->fps_report_rate_array[i]);
+				TP_INFO(tcm_info->tp_index, "fps_report_rate is: %d\n", tcm_info->fps_report_rate_array[i]);
 			}
 		}
 	} else {
@@ -6242,12 +6915,12 @@ static void init_chip_dts(struct device *dev, void *chip_data)
 		tcm_info->fps_report_rate_array[3] = 1;
 		tcm_info->fps_report_rate_array[4] = 120;
 		tcm_info->fps_report_rate_array[5] = 2;
-		TPD_INFO("fps_report_rate is not dubole %d\n", tcm_info->fps_report_rate_num);
+		TP_INFO(tcm_info->tp_index, "fps_report_rate is not dubole %d\n", tcm_info->fps_report_rate_num);
 	}
 	rc = of_property_read_u32(chip_np, "fwupdate_bootloader", &tcm_info->fwupdate_bootloader);
 	if (rc < 0) {
 		tcm_info->fwupdate_bootloader = 0;
-		TPD_INFO("fwupdate_bootloader %d\n", tcm_info->fwupdate_bootloader);
+		TP_INFO(tcm_info->tp_index, "fwupdate_bootloader %d\n", tcm_info->fwupdate_bootloader);
 	}
 	tcm_info->syna_tempepratue[0] = 5;
 	tcm_info->syna_tempepratue[1] = 15;
@@ -6255,9 +6928,18 @@ static void init_chip_dts(struct device *dev, void *chip_data)
 	tcm_info->syna_low_temp_disable = 1;
 	rc = of_property_read_u32(chip_np, "normal_config_version", &tcm_info->normal_config_version);
 	if (rc < 0) {
-		tcm_info->normal_config_version = 0;
-		TPD_INFO("normal_config_version %d\n", tcm_info->normal_config_version);
+		/* latest projects' default normal config is version-2, old projects with version-0 need to config in dts */
+		tcm_info->normal_config_version = 2;
+		TP_INFO(tcm_info->tp_index, "normal_config_version %d\n", tcm_info->normal_config_version);
 	}
+
+	rc = of_property_read_u32(chip_np, "extreme_game_report_rate", &tcm_info->extreme_game_report_rate);
+	if (rc < 0) {
+		/*default :0 disable feature*/
+		tcm_info->extreme_game_report_rate = 0;
+	}
+	tcm_info->extreme_game_flag = false;
+	TP_INFO(tcm_info->tp_index, "extreme_game_report_rate %d\n", tcm_info->extreme_game_report_rate);
 }
 
 static int syna_tcm_probe(struct spi_device *spi)
@@ -6266,9 +6948,11 @@ static int syna_tcm_probe(struct spi_device *spi)
 	struct syna_tcm_data *tcm_info = NULL;
 	struct touchpanel_data *ts = NULL;
 	struct device_hcd *device_hcd = NULL;
+	u64 time_counter = 0;
 
 	TPD_INFO("%s: enter\n", __func__);
 
+	reset_healthinfo_time_counter(&time_counter);
 
 	/*1. alloc mem for tcm_data*/
 	tcm_info = kzalloc(sizeof(*tcm_info), GFP_KERNEL);
@@ -6288,13 +6972,33 @@ static int syna_tcm_probe(struct spi_device *spi)
 
 	/*3. init member of ts*/
 #ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+	/* init spi_device from mtk */
+	spi->mode = SPI_MODE_0;
+	spi->bits_per_word = 8;
+	spi->max_speed_hz = 15 * 1000 * 1000;
+	spi->cs_setup.value = 1;
+	spi->cs_setup.unit = 0;
+	spi->cs_hold.value = 1;
+	spi->cs_hold.unit = 0;
+	spi->cs_inactive.value = 1;
+	spi->cs_inactive.unit = 0;
+
+	retval = spi_setup(spi);
+	if (retval < 0) {
+		TPD_INFO(" failed to setup spi!\n");
+	}
+#else
 	spi->controller_data = (void *)&st_spi_ctrdata;
+#endif
 #endif
 	ts->dev = &spi->dev;
 	ts->s_client  = spi;
 	ts->irq = spi->irq;
 	ts->chip_data = tcm_info;
+	ts->s_client->chip_select = 0; /*modify reg=0 for more tp vendor share same spi interface*/
 	spi_set_drvdata(spi, ts);
+
 	ts->ts_ops = &syna_tcm_ops;
 	ts->engineer_ops = &syna_tcm_engineer_test_ops;
 	ts->com_test_data.chip_test_ops = &syna_tcm_test_ops;
@@ -6317,6 +7021,31 @@ static int syna_tcm_probe(struct spi_device *spi)
 	tcm_info->boot_flag = true;
 	tcm_info->first_sync_flag = true;
 	tcm_info->snr = ts->snr;
+	tcm_info->palm_hold_report = 0;
+
+	/* tp_index*/
+	retval = of_property_read_u32(ts->dev->of_node, "touchpanel,tp-index", &ts->tp_index);
+
+	if (retval) {
+		TPD_BOOT_INFO("ts->tp_index not specified\n");
+		ts->tp_index = 0;
+	} else {
+		if (ts->tp_index >= TP_SUPPORT_MAX) {
+			TP_INFO(ts->tp_index, "ts->tp_index is big than %d\n", TP_SUPPORT_MAX);
+			ts->tp_index = 0;
+		}
+	}
+	TPD_INFO("ts->tp_index is %d\n", ts->tp_index);
+
+	/* add input_dev info */
+	ts->id.bustype = BUS_SPI;
+	ts->id.vendor = SYNAPTICS;
+
+	if (!ts->tp_index) {
+		ts->id.product = S3910;
+	} else {
+		ts->id.product = S3910_SECOND;
+	}
 
 	atomic_set(&tcm_info->command_status, CMD_IDLE);
 	mutex_init(&tcm_info->reset_mutex);
@@ -6343,6 +7072,13 @@ static int syna_tcm_probe(struct spi_device *spi)
 	INIT_BUFFER(tcm_info->config, false);
 	INIT_BUFFER(tcm_info->default_config, false);
 	INIT_BUFFER(tcm_info->report.buffer, true);
+
+#ifdef EXTERNAL_DEBUG_LOGGING
+	mutex_init(&tcm_info->fifo_mutex);
+	INIT_BUFFER(tcm_info->external_buf, false);
+	INIT_LIST_HEAD(&tcm_info->frame_fifo_queue);
+	init_waitqueue_head(&tcm_info->wait_frame);
+#endif
 
 	/*5. alloc mem for reading in buffer*/
 	LOCK_BUFFER(tcm_info->in);
@@ -6378,8 +7114,11 @@ static int syna_tcm_probe(struct spi_device *spi)
 	INIT_BUFFER(tcm_info->touch_hcd->out, false);
 	INIT_BUFFER(tcm_info->touch_hcd->resp, false);
 	mutex_init(&tcm_info->touch_hcd->report_mutex);
-	of_property_read_u32(ts->dev->of_node, "touchpanel,max-num-support",
+	retval = of_property_read_u32(ts->dev->of_node, "touchpanel,max-num-support",
 			     &tcm_info->touch_hcd->max_objects);
+	if (retval < 0) {
+		tcm_info->touch_hcd->max_objects = 10;
+	}
 	tcm_info->touch_hcd->touch_data.object_data =
 		(struct object_data *)tp_devm_kzalloc(ts->dev,
 				sizeof(struct object_data) * tcm_info->touch_hcd->max_objects, GFP_KERNEL);
@@ -6406,7 +7145,7 @@ static int syna_tcm_probe(struct spi_device *spi)
 	retval = register_common_touch_device(ts);
 
 	if (retval < 0 && (retval != -EFTM)) {
-		TPD_INFO("Failed to init device information\n");
+		TP_INFO(tcm_info->tp_index, "Failed to init device information\n");
 		goto err_malloc_register;
 	}
 
@@ -6414,6 +7153,7 @@ static int syna_tcm_probe(struct spi_device *spi)
 	tcm_info->tp_index = ts->tp_index;
 	init_chip_dts(ts->dev, tcm_info);
 	tcm_info->black_gesture_indep = ts->black_gesture_indep_support;
+	tcm_info->differ_read_every_frame = false;
 
 	tcm_info->chip_resolution_info = &ts->resolution_info;
 
@@ -6424,12 +7164,15 @@ static int syna_tcm_probe(struct spi_device *spi)
 	device_hcd = syna_remote_device_S3010_init(tcm_info);
 
 	if (device_hcd) {
-		device_hcd->irq = tcm_info->client->irq;
+		if (gpio_is_valid(ts->hw_res.irq_gpio)) {
+			device_hcd->irq = gpio_to_irq(ts->hw_res.irq_gpio);
+		}
 		device_hcd->read_message = syna_tcm_read_message;
 		device_hcd->write_message = syna_tcm_write_message;
 		device_hcd->reset = syna_tcm_reset;
 		device_hcd->report_touch = syna_device_report_touch;
 		device_hcd->tp_index = ts->tp_index;
+		TP_INFO(tcm_info->tp_index, "%s:device_hcd->irq = %d\n", __func__, device_hcd->irq);
 	}
 	tcm_info->fw_update_app_support = &ts->fw_update_app_support;
 	tcm_info->loading_fw  = &ts->loading_fw;
@@ -6437,7 +7180,7 @@ static int syna_tcm_probe(struct spi_device *spi)
 	if (tcm_info->fwupdate_bootloader) {
 		tcm_info->g_fw_buf = vmalloc(FW_BUF_SIZE);
 		if (tcm_info->g_fw_buf == NULL) {
-			TPD_INFO("fw buf vmalloc error\n");
+			TP_INFO(tcm_info->tp_index, "fw buf vmalloc error\n");
 			goto err_malloc_register;
 		}
 		tcm_info->g_fw_sta = false;
@@ -6488,10 +7231,24 @@ static void syna_tcm_tp_shutdown(struct spi_device *s_client)
 	tp_shutdown(ts);
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+static void syna_tcm_remove(struct spi_device *s_client)
+#else
 static int syna_tcm_remove(struct spi_device *s_client)
+#endif
 {
 	struct touchpanel_data *ts =  spi_get_drvdata(s_client);
-	struct syna_tcm_data *tcm_info = (struct syna_tcm_data *)ts->chip_data;
+	struct syna_tcm_data *tcm_info = NULL;
+
+	if (!ts) {
+		TPD_INFO("%s spi_get_drvdata(s_client) is null.\n", __func__);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+#else
+		return -EINVAL;
+#endif
+	}
+
+	tcm_info = (struct syna_tcm_data *)ts->chip_data;
 
 	RELEASE_BUFFER(tcm_info->report.buffer);
 	RELEASE_BUFFER(tcm_info->config);
@@ -6513,24 +7270,31 @@ static int syna_tcm_remove(struct spi_device *s_client)
 	tp_kfree((void **)&tcm_info);
 	spi_set_drvdata(s_client, NULL);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+#else
 	return 0;
+#endif
 }
 
 static int syna_spi_suspend(struct device *dev)
 {
+#ifndef CONFIG_ARCH_QTI_VM
 	struct touchpanel_data *ts = dev_get_drvdata(dev);
 
 	TPD_INFO("%s: is called\n", __func__);
 	tp_pm_suspend(ts);
+#endif
 	return 0;
 }
 
 static int syna_spi_resume(struct device *dev)
 {
+#ifndef CONFIG_ARCH_QTI_VM
 	struct touchpanel_data *ts = dev_get_drvdata(dev);
 
 	TPD_INFO("%s is called\n", __func__);
 	tp_pm_resume(ts);
+#endif
 	return 0;
 }
 
@@ -6540,14 +7304,20 @@ static const struct dev_pm_ops syna_pm_ops = {
 };
 
 static const struct spi_device_id syna_tmc_id[] = {
-	{ TPD_DEVICE, 0 },
-	{ }
+        { TPD_DEVICE, 0},
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+        { "oplus,tp_noflash", 0 },
+#endif
+        { }
 };
 
 static struct of_device_id syna_match_table[] = {
-	{ .compatible = TPD_DEVICE, },
-	{ .compatible = "synaptics-s3910", },
-	{ }
+        { .compatible = TPD_DEVICE, },
+#ifdef CONFIG_TOUCHPANEL_MTK_PLATFORM
+        { .compatible = "oplus,tp_noflash", },
+#endif
+        { .compatible = "synaptics-s3910", },
+        { }
 };
 
 static struct spi_driver syna_spi_driver = {
@@ -6569,15 +7339,16 @@ static int __init tp_driver_init_syna_tcm(void)
 	TPD_INFO("%s is called\n", __func__);
 
 	if (!tp_judge_ic_match(TPD_DEVICE)) {
-		TPD_INFO("tp_judge_ic_match fail\n");
-		return 0;
+		TPD_INFO("%s: tp_judge_ic_match fail\n", __func__);
+		goto OUT;
 	}
-	TPD_INFO("spi_register_driver\n");
+
 	if (spi_register_driver(&syna_spi_driver) != 0) {
-		TPD_INFO("unable to add spi driver.\n");
-		return -1;
+		TPD_INFO("%s: unable to add spi driver.\n", __func__);
+		goto OUT;
 	}
-	TPD_INFO("spi_register_driver OK\n");
+	TPD_INFO("%s: spi_register_driver OK\n", __func__);
+OUT:
 	return 0;
 }
 

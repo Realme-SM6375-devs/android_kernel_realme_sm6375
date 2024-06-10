@@ -27,6 +27,9 @@
 #include "dsi-panel-nt36672c-tianma-fhd-video.dtsi"
 #include "dsi-panel-oplus22035-tm-ili7838a-1080-2412-dsc-cmd.dtsi"
 #include "dsi-panel-oplus22035-boe-nt37705-1080-2412-dsc-cmd.dtsi"
+#include "dsi-panel-oplus22821-nt36672c-tianma-fhd-video.dtsi"
+#include "dsi-panel-oplus22045-ili7807s-dsjdi-fhd-video.dtsi"
+#include "dsi-panel-oplus22035-visionox-ili7838a-1080-2412-dsc-cmd.dtsi"
 
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {

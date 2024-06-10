@@ -1128,7 +1128,7 @@ int wcd937x_mbhc_init(struct wcd937x_mbhc **mbhc,
 	pdata = dev_get_platdata(component->dev);
 	if (!pdata) {
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		dev_err_fb_delay(component->dev, "%s: pdata pointer is NULL\n", __func__);
+		dev_err_fb_fatal_delay(component->dev, "%s: pdata pointer is NULL\n", __func__);
 #else
 		dev_err(component->dev, "%s: pdata pointer is NULL\n",
 			__func__);
@@ -1174,7 +1174,7 @@ int wcd937x_mbhc_init(struct wcd937x_mbhc **mbhc,
 	#endif /* OPLUS_ARCH_EXTENDS */
 	if (ret) {
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
-		dev_err_fb_delay(component->dev, "%s: mbhc initialization failed\n", __func__);
+		dev_err_fb_fatal_delay(component->dev, "%s: mbhc initialization failed\n", __func__);
 #else
 		dev_err(component->dev, "%s: mbhc initialization failed\n",
 			__func__);

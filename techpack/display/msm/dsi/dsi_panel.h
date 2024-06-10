@@ -134,7 +134,6 @@ struct dsi_backlight_config {
 	u32 brightness_default_level;
 	u32 bl_hbm_min_level;
 #endif /* OPLUS_BUG_STABILITY */
-
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_sv;
@@ -241,6 +240,13 @@ struct dsi_panel_oplus_privite {
 ********************************************/
 	u32 fp_type;
 	bool disable_53h_control;
+	bool dimming_control;
+};
+
+struct dsi_panel_oplus_serial_number {
+	bool is_switch_page;
+	u32 *serial_number_multi_regs;
+	int serial_number_index;
 };
 #endif /* OPLUS_BUG_STABILITY */
 
@@ -335,6 +341,7 @@ struct dsi_panel {
 	struct oplus_brightness_alpha *ba_seq;
 	int ba_count;
 	struct dsi_panel_oplus_privite oplus_priv;
+	struct dsi_panel_oplus_serial_number oplus_ser;
 #endif
 	u32 dsc_count;
 	u32 lm_count;

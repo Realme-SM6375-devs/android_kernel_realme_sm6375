@@ -136,6 +136,10 @@ static int afe_loopback_tx_port_id = -1;
 static struct msm_pcm_channel_mixer ec_ref_chmix_cfg[MSM_FRONTEND_DAI_MAX];
 static struct msm_ec_ref_port_cfg ec_ref_port_cfg;
 
+static int32_t mclk_cfg_be_idx;
+static int32_t mclk_cfg_src_id;
+static uint32_t mclk_cfg_freq;
+
 #define WEIGHT_0_DB 0x4000
 /* all the FEs which can support channel mixer */
 static struct msm_pcm_channel_mixer channel_mixer[MSM_FRONTEND_DAI_MM_SIZE];
@@ -30979,6 +30983,10 @@ static const struct snd_kcontrol_new wsa_cdc_dma_rx_0_port_mixer_controls[] = {
 	MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0,
 	MSM_BACKEND_DAI_TX_CDC_DMA_TX_3, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	SOC_DOUBLE_EXT("SLIM_7_TX", SND_SOC_NOPM,
+	MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0,
+	MSM_BACKEND_DAI_SLIMBUS_7_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
 	SOC_DOUBLE_EXT("SLIM_8_TX", SND_SOC_NOPM,
 	MSM_BACKEND_DAI_WSA_CDC_DMA_RX_0,
 	MSM_BACKEND_DAI_SLIMBUS_8_TX, 1, 0, msm_routing_get_port_mixer,
@@ -33701,6 +33709,12 @@ static const struct soc_enum int4_mi2s_rx_vi_fb_stereo_ch_mux_enum =
 	int4_mi2s_rx_vi_fb_tx_stereo_mux_text,
 	int4_mi2s_rx_vi_fb_tx_stereo_ch_value);
 
+#ifdef CONFIG_SND_SOC_AW882XX
+static const struct soc_enum tdm_rx_vi_fb_mux_enum =
+	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SEC_TDM_RX_0, 0, 0,
+	ARRAY_SIZE(tdm_rx_vi_fb_tx_mux_text),
+	tdm_rx_vi_fb_tx_mux_text, tdm_rx_vi_fb_tx_value);
+#endif
 static const struct snd_kcontrol_new cdc_dma_rx_0_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("CDC_DMA_RX_0_VI_FB_MUX",
 	cdc_dma_rx_0_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
@@ -33710,13 +33724,6 @@ static const struct snd_kcontrol_new cdc_dma_rx_1_vi_fb_mux =
 	SOC_DAPM_ENUM_EXT("CDC_DMA_RX_1_VI_FB_MUX",
 	cdc_dma_rx_1_vi_fb_mux_enum, spkr_prot_get_vi_lch_port,
 	spkr_prot_put_vi_lch_port);
-
-#ifdef CONFIG_SND_SOC_AW882XX
-static const struct soc_enum tdm_rx_vi_fb_mux_enum =
-	SOC_VALUE_ENUM_DOUBLE(0, MSM_BACKEND_DAI_SEC_TDM_RX_0, 0, 0,
-	ARRAY_SIZE(tdm_rx_vi_fb_tx_mux_text),
-	tdm_rx_vi_fb_tx_mux_text, tdm_rx_vi_fb_tx_value);
-#endif
 
 static const struct snd_kcontrol_new slim0_rx_vi_fb_lch_mux =
 	SOC_DAPM_ENUM_EXT("SLIM0_RX_VI_FB_LCH_MUX",
@@ -37230,6 +37237,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SLIM1_UL_HL", NULL, "SLIMBUS_1_TX"},
 	{"SLIM3_UL_HL", NULL, "SLIMBUS_3_TX"},
 	{"SLIM4_UL_HL", NULL, "SLIMBUS_4_TX"},
+	{"SLIM7_UL_HL", NULL, "SLIMBUS_7_TX"},
 	{"SLIM8_UL_HL", NULL, "SLIMBUS_8_TX"},
 	{"WSA_CDC_DMA_RX_0_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_CDC_DMA_RX_0_DL_HL"},
@@ -37239,11 +37247,13 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"RX_CDC_DMA_RX_1_DL_HL", "Switch", "CDC_DMA_DL_HL"},
 	{"RX_CDC_DMA_RX_1", NULL, "RX_CDC_DMA_RX_1_DL_HL"},
 	{"TX3_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_3"},
-	{"TX4_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_4"},
 #ifdef OPLUS_ARCH_EXTENDS
 	{"SEC_TDM_RX_0_DL_HL", "Switch", "SEC_TDM_RX_0_DL_HL"},
 	{"SEC_TDM_RX_0", NULL, "SEC_TDM_RX_0_DL_HL"},
 #endif
+#ifdef OPLUS_FEATURE_AUDIO_FTM
+	{"TX4_CDC_DMA_UL_HL", NULL, "TX_CDC_DMA_TX_4"},
+#endif /* OPLUS_FEATURE_AUDIO_FTM */
 	{"LSM1 Mixer", "SLIMBUS_0_TX", "SLIMBUS_0_TX"},
 	{"LSM1 Mixer", "SLIMBUS_1_TX", "SLIMBUS_1_TX"},
 	{"LSM1 Mixer", "SLIMBUS_3_TX", "SLIMBUS_3_TX"},
@@ -37359,6 +37369,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	/* connect to INT4_MI2S_DL_HL since same pcm_id */
 	{"WSA_CDC_DMA_RX_0 Port Mixer", "VA_CDC_DMA_TX_0", "VA_CDC_DMA_TX_0"},
 	{"WSA_CDC_DMA_RX_0 Port Mixer", "TX_CDC_DMA_TX_3", "TX_CDC_DMA_TX_3"},
+	{"WSA_CDC_DMA_RX_0 Port Mixer", "SLIM_7_TX", "SLIMBUS_7_TX"},
 	{"WSA_CDC_DMA_RX_0 Port Mixer", "SLIM_8_TX", "SLIMBUS_8_TX"},
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_CDC_DMA_RX_0 Port Mixer"},
 
@@ -43256,6 +43267,16 @@ static const struct snd_kcontrol_new
 	},
 };
 
+static int msm_routing_get_mclk_src_cfg(struct snd_kcontrol *kcontrol,
+                                        struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = mclk_cfg_be_idx;
+	ucontrol->value.integer.value[1] = mclk_cfg_src_id;
+	ucontrol->value.integer.value[2] = mclk_cfg_freq;
+
+        return 0;
+}
+
 static int msm_routing_put_mclk_src_cfg(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -43267,6 +43288,10 @@ static int msm_routing_put_mclk_src_cfg(struct snd_kcontrol *kcontrol,
 	be_idx = ucontrol->value.integer.value[0];
 	mclk_src_id = ucontrol->value.integer.value[1];
 	mclk_freq = ucontrol->value.integer.value[2];
+
+	mclk_cfg_be_idx = be_idx;
+	mclk_cfg_src_id = mclk_src_id;
+	mclk_cfg_freq = mclk_freq;
 
 	if (be_idx < 0 || be_idx >= MSM_BACKEND_DAI_MAX) {
 		pr_err("%s: Invalid be id %d\n", __func__, be_idx);
@@ -43297,7 +43322,8 @@ static int msm_routing_put_mclk_src_cfg(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new mclk_src_controls[] = {
 	SOC_SINGLE_MULTI_EXT("MCLK_SRC CFG", SND_SOC_NOPM, 0, 24576000, 0, 3,
-					NULL, msm_routing_put_mclk_src_cfg),
+			     msm_routing_get_mclk_src_cfg,
+			     msm_routing_put_mclk_src_cfg),
 };
 
 static int msm_routing_stereo_channel_reverse_control_get(

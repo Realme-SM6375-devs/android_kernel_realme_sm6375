@@ -831,9 +831,11 @@ void kgsl_device_snapshot(struct kgsl_device *device,
 		return;
 	}
 
+/*
 	if (WARN(!kgsl_state_is_awake(device),
 		"snapshot: device is powered off\n"))
 		return;
+*/
 
 	/* increment the hang count for good book keeping */
 	device->snapshot_faultcount++;

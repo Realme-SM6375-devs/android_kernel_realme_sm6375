@@ -4173,7 +4173,6 @@ void reg_dmav2_setup_dspp_igcv4(struct sde_hw_dspp *ctx, void *cfg)
 	}
 #endif
 
-
 	REG_DMA_SETUP_OPS(dma_write_cfg, ctx->cap->sblk->igc.base + 0x4,
 			&reg, sizeof(reg), REG_SINGLE_WRITE, 0, 0, 0);
 	rc = dma_ops->setup_payload(&dma_write_cfg);

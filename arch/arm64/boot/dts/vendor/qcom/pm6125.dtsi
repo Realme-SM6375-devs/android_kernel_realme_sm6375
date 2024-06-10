@@ -36,6 +36,7 @@
 				qcom,pull-up;
 				linux,code = <KEY_POWER>;
 			};
+
 			/*qcom,pon_2 {
 				qcom,pon-type = <PON_POWER_ON_TYPE_RESIN>;
 				qcom,pull-up;

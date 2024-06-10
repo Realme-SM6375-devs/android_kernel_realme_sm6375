@@ -28,6 +28,7 @@
 #define PGD	1
 #define IFD	0
 
+#define OPLUS_BT_SLIM_MODIFY 1
 
 /* Codec driver defines */
 enum {
@@ -81,6 +82,11 @@ extern int btfm_feedback_ch_setting;
  * else: Fail
  */
 int btfm_slim_hw_init(struct btfmslim *btfmslim);
+//ifdef OPLUS_FEATURE_BT_HW_ERROR_DETECT
+//add for collect slimbus reason
+int btfm_slim_get_hw_init_result(void);
+void btfm_slim_set_hw_init_result(int result);
+//end /* OPLUS_FEATURE_BT_HW_ERROR_DETECT */
 
 /**
  * btfm_slim_hw_deinit: Deinitialize slimbus slave device

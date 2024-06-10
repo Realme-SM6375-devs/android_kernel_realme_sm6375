@@ -5,6 +5,7 @@
 
 #include "nfc_common.h"
 
+#include <soc/oplus/system/boot_mode.h>
 /**
  * i2c_disable_irq()
  *
@@ -390,6 +391,12 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	device_init_wakeup(&client->dev, true);
 	i2c_dev->irq_wake_up = false;
 	nfc_dev->is_ese_session_active = false;
+
+	dev_err(&client->dev,"%s: get boot mode = %d \n", __func__, get_boot_mode());
+	if(get_boot_mode() == MSM_BOOT_MODE__FACTORY){
+		dev_err(&client->dev,"%s: enter ftm mode, set ven = 0\n", __func__);
+		gpio_set_ven(nfc_dev, 0);
+	}
 
 	pr_info("%s success\n", __func__);
 	return 0;

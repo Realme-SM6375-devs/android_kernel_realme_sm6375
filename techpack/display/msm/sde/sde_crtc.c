@@ -2292,14 +2292,14 @@ static void sde_crtc_frame_event_cb(void *data, u32 event)
 
 	SDE_DEBUG("crtc%d\n", crtc->base.id);
 	SDE_EVT32_VERBOSE(DRMID(crtc), event);
-#ifdef OPLUS_BUG_STABILITY
+
 	spin_lock_irqsave(&sde_crtc->fevent_spin_lock, flags);
 	fevent = list_first_entry_or_null(&sde_crtc->frame_event_list,
 			struct sde_crtc_frame_event, list);
 	if (fevent)
 		list_del_init(&fevent->list);
 	spin_unlock_irqrestore(&sde_crtc->fevent_spin_lock, flags);
-#endif/* OPLUS_BUG_STABILITY */
+
 	if (!fevent) {
 		SDE_ERROR("crtc%d event %d overflow\n",
 				crtc->base.id, event);
@@ -7015,9 +7015,7 @@ struct drm_crtc *sde_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 
 	mutex_init(&sde_crtc->crtc_lock);
 	spin_lock_init(&sde_crtc->spin_lock);
-#ifdef OPLUS_BUG_STABILITY
 	spin_lock_init(&sde_crtc->fevent_spin_lock);
-#endif/* OPLUS_BUG_STABILITY */
 	atomic_set(&sde_crtc->frame_pending, 0);
 
 	sde_crtc->enabled = false;

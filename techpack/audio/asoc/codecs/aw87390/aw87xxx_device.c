@@ -34,6 +34,10 @@
 #include "aw87xxx_pid_5a_reg.h"
 #include "aw87xxx_pid_76_reg.h"
 #include "aw87xxx_pid_60_reg.h"
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include <soc/oplus/system/oplus_mm_kevent_fb.h>
+#define OPLUS_AUDIO_EVENTID_SMARTPA_ERR    10041
+#endif
 
 /*************************************************************************
  * aw87xxx variable
@@ -892,6 +896,12 @@ static int aw_dev_chip_init(struct aw_device *aw_dev)
 		ret = aw_dev_pid_9a_init(aw_dev);
 		if (ret < 0)
 			AW_DEV_LOGE(aw_dev->dev, "product is pid_9B init failed");
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		if (ret < 0) {
+			mm_fb_audio_fatal_delay(OPLUS_AUDIO_EVENTID_SMARTPA_ERR, MM_FB_KEY_RATELIMIT_5MIN, \
+				FEEDBACK_DELAY_60S, "product is pid_9B init failed, ret=%d", ret);
+		}
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 		break;
 	case AW_DEV_CHIPID_9B:
 		aw_dev_pid_9b_init(aw_dev);
@@ -970,6 +980,10 @@ int aw87xxx_dev_init(struct aw_device *aw_dev)
 	ret = aw87xxx_dev_get_chipid(aw_dev);
 	if (ret < 0) {
 		AW_DEV_LOGE(aw_dev->dev, "read chipid is failed,ret=%d", ret);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		mm_fb_audio_fatal_delay(OPLUS_AUDIO_EVENTID_SMARTPA_ERR, MM_FB_KEY_RATELIMIT_5MIN, \
+				FEEDBACK_DELAY_60S, "read chipid is failed,ret=%d", ret);
+#endif /*CONFIG_OPLUS_FEATURE_MM_FEEDBACK*/
 		return ret;
 	}
 

@@ -1109,6 +1109,10 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 			mbhc->mbhc_cb->enable_mb_source(mbhc, true);
 		mbhc->btn_press_intr = false;
 		mbhc->is_btn_press = false;
+		#ifdef OPLUS_ARCH_EXTENDS
+		g_hskey_block_flag = true;
+		schedule_delayed_work(&hskey_block_work, msecs_to_jiffies(1000));
+		#endif /* OPLUS_ARCH_EXTENDS */
 
 		#ifndef OPLUS_ARCH_EXTENDS
 		if (mbhc->mbhc_fn)
@@ -1219,6 +1223,9 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 									false);
 		}
 
+		#ifdef OPLUS_ARCH_EXTENDS
+		cancel_delayed_work_sync(&hskey_block_work);
+		#endif /* OPLUS_ARCH_EXTENDS */
 	} else if (!detection_type) {
 		#ifdef OPLUS_ARCH_EXTENDS
 		if (mbhc->micbias_enable) {
@@ -1259,6 +1266,9 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 					mbhc->component, false);
 			mbhc->usbc_l_det_en = false;
 		}
+		#endif /* OPLUS_ARCH_EXTENDS */
+		#ifdef OPLUS_ARCH_EXTENDS
+		cancel_delayed_work_sync(&hskey_block_work);
 		#endif /* OPLUS_ARCH_EXTENDS */
 	}
 
@@ -1351,10 +1361,19 @@ static void wcd_btn_lpress_fn(struct work_struct *work)
 
 	WCD_MBHC_REG_READ(WCD_MBHC_BTN_RESULT, btn_result);
 	if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET) {
+	#ifdef OPLUS_ARCH_EXTENDS
+		if (!g_hskey_block_flag) {
+			pr_debug("%s: Reporting long button press event, btn_result: %d\n",
+				 __func__, btn_result);
+			wcd_mbhc_jack_report(mbhc, &mbhc->button_jack,
+					mbhc->buttons_pressed, mbhc->buttons_pressed);
+		}
+	#else /* OPLUS_ARCH_EXTENDS */
 		pr_debug("%s: Reporting long button press event, btn_result: %d\n",
 			 __func__, btn_result);
 		wcd_mbhc_jack_report(mbhc, &mbhc->button_jack,
 				mbhc->buttons_pressed, mbhc->buttons_pressed);
+	#endif /* OPLUS_ARCH_EXTENDS */
 	}
 	pr_debug("%s: leave\n", __func__);
 	mbhc->mbhc_cb->lock_sleep(mbhc, false);
@@ -1484,13 +1503,35 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 		if (ret == 0) {
 			pr_debug("%s: Reporting long button release event\n",
 				 __func__);
+			#ifdef OPLUS_ARCH_EXTENDS
+			if (!g_hskey_block_flag) {
+				wcd_mbhc_jack_report(mbhc, &mbhc->button_jack,
+						0, mbhc->buttons_pressed);
+			}
+			#else /* OPLUS_ARCH_EXTENDS */
 			wcd_mbhc_jack_report(mbhc, &mbhc->button_jack,
 					0, mbhc->buttons_pressed);
+			#endif /* OPLUS_ARCH_EXTENDS */
 		} else {
 			if (mbhc->in_swch_irq_handler) {
 				pr_debug("%s: Switch irq kicked in, ignore\n",
 					__func__);
 			} else {
+				#ifdef OPLUS_ARCH_EXTENDS
+				if (!g_hskey_block_flag) {
+					pr_debug("%s: Reporting btn press\n",
+						 __func__);
+					wcd_mbhc_jack_report(mbhc,
+								 &mbhc->button_jack,
+								 mbhc->buttons_pressed,
+								 mbhc->buttons_pressed);
+					pr_debug("%s: Reporting btn release\n",
+						 __func__);
+					wcd_mbhc_jack_report(mbhc,
+							&mbhc->button_jack,
+							0, mbhc->buttons_pressed);
+				}
+				#else /* OPLUS_ARCH_EXTENDS */
 				pr_debug("%s: Reporting btn press\n",
 					 __func__);
 				wcd_mbhc_jack_report(mbhc,
@@ -1502,6 +1543,7 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 				wcd_mbhc_jack_report(mbhc,
 						&mbhc->button_jack,
 						0, mbhc->buttons_pressed);
+				#endif /* OPLUS_ARCH_EXTENDS */
 			}
 		}
 		mbhc->buttons_pressed &= ~WCD_MBHC_JACK_BUTTON_MASK;
@@ -2079,6 +2121,11 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 		wcd_mbhc_plug_fix_after_ssr(mbhc);
 	}
 	#endif /* OPLUS_ARCH_EXTENDS */
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	pr_info("%s: event_id=%u, version:%s\n", __func__, \
+			OPLUS_AUDIO_EVENTID_HEADSET_DET, HEADSET_ERR_FB_VERSION);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 	return rc;
 err:

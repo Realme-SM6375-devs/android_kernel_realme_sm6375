@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ * Copyright (C) 2018-2020 oppo. All rights reserved.
  */
 
 #ifndef _TOUCHPANEL_COMMON_API_H_
@@ -26,8 +26,15 @@ extern unsigned int tp_debug;
 #define TPD_DEVICE "touchpanel"
 #endif
 
+#define TPD_BOOT_INFO(a, arg...)  pr_info("[TP]"TPD_DEVICE ": " a, ##arg)
+#define TP_BOOT_INFO(index, a, arg...)  pr_info("[TP""%x""]"TPD_DEVICE": " a, index, ##arg)
+
 #define TPD_INFO(a, arg...)  pr_err("[TP]"TPD_DEVICE ": " a, ##arg)
 #define TP_INFO(index, a, arg...)  pr_err("[TP""%x""]"TPD_DEVICE": " a, index, ##arg)
+
+#define GRIP_TP_INFO(a, arg...)  pr_err("[TP""%x""]"TPD_DEVICE": " a, grip_info->tp_index, ##arg)
+#define TS_TP_INFO(a, arg...)  pr_err("[TP""%x""]"TPD_DEVICE": " a, ts->tp_index, ##arg)
+
 
 #define TPD_DEBUG(a, arg...)\
 	do{\
@@ -64,7 +71,7 @@ extern unsigned int tp_debug;
 #define TP_SPECIFIC_PRINT(index, count, a, arg...)\
 			do{\
 				if (count++ == TPD_PRINT_POINT_NUM || LEVEL_DEBUG == tp_debug) {\
-					TPD_INFO(TPD_DEVICE"%x"": " a, index, ##arg);\
+					TP_INFO(index, TPD_DEVICE ": " a, ##arg);\
 					count = 0;\
 				}\
 			}while(0)
@@ -82,6 +89,7 @@ extern unsigned int tp_debug;
 						.proc_write = write_func,	  \
 						.proc_read	= read_func,	  \
 						.proc_release = release_func, \
+						.proc_lseek	= default_llseek, \
 					}
 #else
 #define DECLARE_PROC_OPS(name, open_func, read_func, write_func, release_func) \

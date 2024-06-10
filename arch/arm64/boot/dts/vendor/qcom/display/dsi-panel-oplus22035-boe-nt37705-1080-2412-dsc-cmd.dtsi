@@ -6,7 +6,7 @@
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 		qcom,mdss-dsi-virtual-channel-id = <0>;
 		qcom,mdss-dsi-stream = <0>;
-		qcom,mdss-dsi-bpp = <24>;
+		qcom,mdss-dsi-bpp = <30>;
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
@@ -25,7 +25,7 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-loading-effect;
 		qcom,mdss-dsi-mdp-trigger = "none";
-		qcom,mdss-dsi-reset-sequence = <1 2>, <0 5>, <1 10>;
+		qcom,mdss-dsi-reset-sequence = <1 2>, <0 5>, <1 22>;
 		qcom,mdss-dsi-te-pin-select = <1>;
 		qcom,mdss-dsi-te-dcs-command = <1>;
 		qcom,mdss-pan-physical-width-dimension = <70>;
@@ -37,7 +37,7 @@
 		qcom,mdss-dsi-wr-mem-start = <0x2c>;
 		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
 		qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
-		//qcom,mdss-dsc-scr-version = <0x1>;
+		qcom,mdss-dsc-scr-version = <0x1>;
 		qcom,mdss-bl-high2bit;
 		/* HDR Setting */
 		qcom,mdss-dsi-panel-hdr-enabled;
@@ -46,25 +46,19 @@
 		qcom,mdss-dsi-panel-average-brightness = <2000000>;
 		qcom,mdss-dsi-panel-blackness-level = <4000>;
 
-		//qcom,esd-check-enabled;
-		oplus,esd-check-flag-enabled;
-		qcom,mdss-dsi-panel-status-check-mode = "reg_read";
-		qcom,mdss-dsi-panel-status-command = [
-				06 01 00 01 05 00 02 0A 00
-			];
 		qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-panel-status-value = <0x9C>;
 		qcom,mdss-dsi-panel-status-read-length = <1>;
 
 		qcom,mdss-dsi-display-timings {
 		timing@0{
-				qcom,mdss-mdp-transfertransfer-time-us = <7000>;
+				qcom,mdss-mdp-transfer-time-us = <7000>;
 				qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
-				//qcom,mdss-dsc-scr-version = <0x1>;
+				qcom,mdss-dsc-scr-version = <0x1>;
 				qcom,mdss-dsc-version = <0x11>;
 				qcom,mdss-dsi-timing-default;
 				qcom,mdss-dsi-panel-framerate = <120>;
-				qcom,mdss-dsi-panel-clockrate = <970000000>;
+				qcom,mdss-dsi-panel-clockrate = <978000000>;
 				qcom,mdss-dsi-panel-width = <1080>;
 				qcom,mdss-dsi-panel-height = <2412>;
 
@@ -101,11 +95,17 @@
 					15 01 00 00 00 00 02 B0 01
 					];
 				qcom,mdss-dsi-on-command=[
-					//Lvdet on
+					//ELVDD peak
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 6F 18
+					15 01 00 00 00 00 02 D8 18
+					//Lvdet off
 					39 01 00 00 00 00 06 F0 55 AA 52 08 01
 					15 01 00 00 00 00 02 6F 03
-					15 01 00 00 00 00 02 C7 47
+					15 01 00 00 00 00 02 C7 00
 
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 CD 61
 					//DSPOSC=121.9MHz
 					39 01 00 00 00 00 05 FF AA 55 A5 80
 
@@ -157,11 +157,10 @@
 					//PPS Setting(8bit_3X)
 					15 01 00 00 00 00 02 03 01
 					39 01 00 00 00 00 03 90 03 03
-					//39 01 00 00 00 00 13 91 89 28 00 0C D2 00 02 25 01 14 00 07 09 75 08 7A 10 F0
 					39 01 00 00 00 00 05 FF AA 55 A5 81
 					15 01 00 00 00 00 02 6F 24
-					39 01 00 00 00 00 15 FB 00 01 00 11 33 33 33 55 57 D0 00 00 44 56 77 78 9A BC DD F0
-					39 01 00 00 00 00 13 91 89 28 00 0C C2 00 02 37 01 33 00 08 08 BB 07 5F 10 F0
+					39 01 00 00 00 00 15 FB 00 03 04 55 77 77 77 99 9D 00 00 06 88 9A BB BC DE EF F0 11
+					39 01 00 00 00 00 13 91 AB 28 00 0C F2 00 02 52 00 FF 00 07 0A E9 08 7A 10 F0
 
 					//120Hz
 					15 01 00 00 00 00 02 2F 00
@@ -169,7 +168,7 @@
 					15 01 00 00 00 00 02 6F 6B
 					15 01 00 00 00 00 02 B0 01
 
-					05 01 00 00 78 00 01 11
+					05 01 00 00 3D 00 01 11
 					05 01 00 00 14 00 01 29
 				];
 
@@ -204,21 +203,27 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 09 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 11 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 11 00 02 65 01
 				];
 				qcom,mdss-dsi-nolp-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 11 00 01 2C
+					05 01 00 00 11 00 01 38
 				];
 				qcom,mdss-dsi-aod-hbm-on-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 11 00 01 2C
+					05 01 00 00 11 00 01 38
 					/* Hbm ON */
 					39 01 00 00 00 00 03 51 0F FF
 				];
@@ -229,9 +234,11 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 09 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 11 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 11 00 02 65 01
 				];
 				qcom,mdss-dsi-hbm-off-command = [
 				];
@@ -260,20 +267,19 @@
 					39 01 00 00 00 00 05 FF AA 55 A5 81
 					15 01 00 00 00 00 02 6F 0F
 				];
-				qcom,mdss-dsi-aod-hbm-on-command-state = "dsi_hs_mode";
-				qcom,mdss-dsi-aod-hbm-off-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-hbm-on-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-hbm-off-command-state = "dsi_hs_mode";
-				qcom,mdss-dsi-aor-restore-command-state = "dsi_hs_mode";
+				qcom,mdss-dsi-aod-hbm-on-command-state = "dsi_hs_mode";
+				qcom,mdss-dsi-aod-hbm-off-command-state = "dsi_hs_mode";
 
 				qcom,compression-mode = "dsc";
 				qcom,mdss-dsc-slice-height = <12>;
 				qcom,mdss-dsc-slice-width = <540>;
 				qcom,mdss-dsc-slice-per-pkt = <2>;
-				qcom,mdss-dsc-bit-per-component = <8>;
+				qcom,mdss-dsc-bit-per-component = <10>;
 				qcom,mdss-dsc-bit-per-pixel = <8>;
 				qcom,mdss-dsc-block-prediction-enable;
 
@@ -284,11 +290,11 @@
 			timing@1{
 				qcom,mdss-mdp-transfer-time-us = <8000>;
 				qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
-				//qcom,mdss-dsc-scr-version = <0x1>;
+				qcom,mdss-dsc-scr-version = <0x1>;
 				qcom,mdss-dsc-version = <0x11>;
 				qcom,mdss-dsi-timing-default;
 				qcom,mdss-dsi-panel-framerate = <90>;
-				qcom,mdss-dsi-panel-clockrate = <970000000>;
+				qcom,mdss-dsi-panel-clockrate = <978000000>;
 				qcom,mdss-dsi-panel-width = <1080>;
 				qcom,mdss-dsi-panel-height = <2412>;
 
@@ -325,11 +331,17 @@
 					15 01 00 00 00 00 02 B0 00
 					];
 				qcom,mdss-dsi-on-command=[
-					//Lvdet on
+					//ELVDD peak
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 6F 18
+					15 01 00 00 00 00 02 D8 18
+					//Lvdet off
 					39 01 00 00 00 00 06 F0 55 AA 52 08 01
 					15 01 00 00 00 00 02 6F 03
-					15 01 00 00 00 00 02 C7 47
+					15 01 00 00 00 00 02 C7 00
 
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 CD 61
 					//DSPOSC=121.9MHz
 					39 01 00 00 00 00 05 FF AA 55 A5 80
 					15 01 00 00 00 00 02 6F 1A
@@ -380,7 +392,10 @@
 					//PPS Setting(8bit_3X)
 					15 01 00 00 00 00 02 03 01
 					39 01 00 00 00 00 03 90 03 03
-					39 01 00 00 00 00 13 91 89 28 00 0C D2 00 02 25 01 14 00 07 09 75 08 7A 10 F0
+					39 01 00 00 00 00 05 FF AA 55 A5 81
+					15 01 00 00 00 00 02 6F 24
+					39 01 00 00 00 00 15 FB 00 03 04 55 77 77 77 99 9D 00 00 06 88 9A BB BC DE EF F0 11
+					39 01 00 00 00 00 13 91 AB 28 00 0C F2 00 02 52 00 FF 00 07 0A E9 08 7A 10 F0
 
 					//90Hz
 					15 01 00 00 00 00 02 2F 01
@@ -388,7 +403,7 @@
 					15 01 00 00 00 00 02 6F 6B
 					15 01 00 00 00 00 02 B0 00
 
-					05 01 00 00 78 00 01 11
+					05 01 00 00 3D 00 01 11
 					05 01 00 00 14 00 01 29
 				];
 
@@ -423,21 +438,27 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 0C 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 17 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 17 00 02 65 01
 				];
 				qcom,mdss-dsi-nolp-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 17 00 01 2C
+					05 01 00 00 17 00 01 38
 				];
 				qcom,mdss-dsi-aod-hbm-on-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 17 00 01 2C
+					05 01 00 00 17 00 01 38
 					/* Hbm ON */
 					39 01 00 00 00 00 03 51 0F FF
 				];
@@ -448,9 +469,11 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 0C 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 17 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 17 00 02 65 01
 				];
 				qcom,mdss-dsi-hbm-off-command = [
 				];
@@ -495,7 +518,7 @@
 				qcom,mdss-dsc-slice-height = <12>;
 				qcom,mdss-dsc-slice-width = <540>;
 				qcom,mdss-dsc-slice-per-pkt = <2>;
-				qcom,mdss-dsc-bit-per-component = <8>;
+				qcom,mdss-dsc-bit-per-component = <10>;
 				qcom,mdss-dsc-bit-per-pixel = <8>;
 				qcom,mdss-dsc-block-prediction-enable;
 				qcom,mdss-dsi-panel-id1-command-state = "dsi_lp_mode";
@@ -505,11 +528,11 @@
 			timing@2{
 				qcom,mdss-mdp-transfer-time-us = <9000>;
 				qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
-				//qcom,mdss-dsc-scr-version = <0x1>;
+				qcom,mdss-dsc-scr-version = <0x1>;
 				qcom,mdss-dsc-version = <0x11>;
 				qcom,mdss-dsi-timing-default;
 				qcom,mdss-dsi-panel-framerate = <60>;
-				qcom,mdss-dsi-panel-clockrate = <970000000>;
+				qcom,mdss-dsi-panel-clockrate = <978000000>;
 				qcom,mdss-dsi-panel-width = <1080>;
 				qcom,mdss-dsi-panel-height = <2412>;
 
@@ -546,11 +569,17 @@
 					15 01 00 00 00 00 02 B0 00
 					];
 				qcom,mdss-dsi-on-command=[
-					//Lvdet on
+					//ELVDD peak
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 6F 18
+					15 01 00 00 00 00 02 D8 18
+					//Lvdet off
 					39 01 00 00 00 00 06 F0 55 AA 52 08 01
 					15 01 00 00 00 00 02 6F 03
-					15 01 00 00 00 00 02 C7 47
+					15 01 00 00 00 00 02 C7 00
 
+					39 01 00 00 00 00 06 F0 55 AA 52 08 01
+					15 01 00 00 00 00 02 CD 61
 					//DSPOSC=121.9MHz
 					39 01 00 00 00 00 05 FF AA 55 A5 80
 					15 01 00 00 00 00 02 6F 1A
@@ -601,11 +630,10 @@
 					//PPS Setting(8bit_3X)
 					15 01 00 00 00 00 02 03 01
 					39 01 00 00 00 00 03 90 03 03
-					//39 01 00 00 00 00 13 91 89 28 00 0C D2 00 02 25 01 14 00 07 09 75 08 7A 10 F0
 					39 01 00 00 00 00 05 FF AA 55 A5 81
 					15 01 00 00 00 00 02 6F 24
-					39 01 00 00 00 00 15 FB 00 01 00 11 33 33 33 55 57 D0 00 00 44 56 77 78 9A BC DD F0
-					39 01 00 00 00 00 13 91 89 28 00 0C C2 00 02 37 01 33 00 08 08 BB 07 5F 10 F0
+					39 01 00 00 00 00 15 FB 00 03 04 55 77 77 77 99 9D 00 00 06 88 9A BB BC DE EF F0 11
+					39 01 00 00 00 00 13 91 AB 28 00 0C F2 00 02 52 00 FF 00 07 0A E9 08 7A 10 F0
 
 					//60Hz
 					15 01 00 00 00 00 02 2F 02
@@ -613,7 +641,7 @@
 					15 01 00 00 00 00 02 6F 6B
 					15 01 00 00 00 00 02 B0 00
 
-					05 01 00 00 78 00 01 11
+					05 01 00 00 3D 00 01 11
 					05 01 00 00 14 00 01 29
 				];
 
@@ -648,21 +676,27 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 11 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 22 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 22 00 02 65 01
 				];
 				qcom,mdss-dsi-nolp-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 22 00 01 2C
+					05 01 00 00 22 00 01 38
 				];
 				qcom,mdss-dsi-aod-hbm-on-command = [
 					/* AOD OFF */
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 4F
 					15 00 00 00 00 00 02 65 00
-					05 00 00 00 00 00 01 38
-					05 01 00 00 22 00 01 2C
+					05 01 00 00 22 00 01 38
 					/* Hbm ON */
 					39 01 00 00 00 00 03 51 0F FF
 				];
@@ -673,9 +707,11 @@
 					15 00 00 00 00 00 02 6F 04
 					39 01 00 00 11 00 03 51 07 5F
 					/* AOD Mode ON Setting */
-					05 00 00 00 00 00 01 39
-					15 00 00 00 00 00 02 65 01
-					05 01 00 00 22 00 01 2C
+					39 00 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 6F 0E
+					15 00 00 00 00 00 02 B5 50
+					05 01 00 00 14 00 01 39
+					15 01 00 00 22 00 02 65 01
 				];
 				qcom,mdss-dsi-hbm-off-command = [
 				];
@@ -720,7 +756,7 @@
 				qcom,mdss-dsc-slice-height = <12>;
 				qcom,mdss-dsc-slice-width = <540>;
 				qcom,mdss-dsc-slice-per-pkt = <2>;
-				qcom,mdss-dsc-bit-per-component = <8>;
+				qcom,mdss-dsc-bit-per-component = <10>;
 				qcom,mdss-dsc-bit-per-pixel = <8>;
 				qcom,mdss-dsc-block-prediction-enable;
 				qcom,mdss-dsi-panel-id1-command-state = "dsi_lp_mode";
@@ -750,47 +786,45 @@
 	oplus,mdss-dsi-osc-clk-mode0-rate = <167000>;
 	oplus,mdss-dsi-osc-clk-mode1-rate = <169000>;
 	oplus,dsi-fod-brightness = <0 0xff>,
-			<2 0xf0>,
-			<4 0xea>,
-			<6 0xe8>,
-			<8 0xe6>,
-			<10 0xe4>,
-			<20 0xe2>,
-			<36 0xe0>,
-			<60 0xdf>,
-			<90 0xdc>,
-			<140 0xda>,
-			<200 0xd8>,
-			<300 0xd6>,
-			<458 0xd5>,
-			<605 0xd4>,
-			<743 0xcf>,
-			<912 0xc8>,
+			<2 0xee>,
+			<4 0xee>,
+			<6 0xed>,
+			<8 0xed>,
+			<10 0xed>,
+			<20 0xed>,
+			<36 0xec>,
+			<60 0xec>,
+			<90 0xeb>,
+			<140 0xea>,
+			<200 0xe8>,
+			<300 0xe5>,
+			<458 0xe0>,
+			<605 0xd8>,
+			<743 0xd0>,
+			<912 0xc7>,
 			<1062 0xbf>,
-			<1187 0xb6>,
-			<1393 0xa0>,
-			<1611 0x9b>,
-			<1787 0x92>,
-			<2000 0x8b>,
-			<2200 0x80>,
-			<2400 0x70>,
-			<2600 0x60>,
-			<2800 0x50>,
-			<3000 0x4A>,
-			<3200 0x40>,
-			<3400 0x36>,
-			<3515 0x2e>;
-	//oplus,esd-check-flag-enabled;
-	//qcom,esd-check-enabled;
+			<1187 0xb8>,
+			<1393 0xae>,
+			<1611 0xa2>,
+			<1787 0x98>,
+			<2000 0x8c>,
+			<2200 0x81>,
+			<2400 0x76>,
+			<2600 0x6a>,
+			<2800 0x5e>,
+			<3000 0x53>,
+			<3200 0x47>,
+			<3400 0x3c>,
+			<3515 0x35>;
+	qcom,esd-check-enabled;
 	qcom,mdss-dsi-panel-status-check-mode = "reg_read";
 	qcom,mdss-dsi-panel-status-command = [
-		06 01 00 01 05 00 01 0A
-		06 01 00 01 05 00 01 0E
-		06 01 00 01 05 00 01 05
+		06 01 00 01 00 00 01 0A
+		06 01 00 01 00 00 01 91
 	];
 	qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
-	qcom,mdss-dsi-panel-status-value = <0x9F 0x80 0x00>;
-	qcom,mdss-dsi-panel-status-read-length = <1 1 1>;
+	qcom,mdss-dsi-panel-status-value = <0x9C 0xAB>;
+	qcom,mdss-dsi-panel-status-read-length = <1 1>;
 
 	qcom,ulps-enabled;
 	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0",
