@@ -356,7 +356,7 @@ bool __attribute__((weak)) oplus_pd_without_usb(void)
 	return 0;
 }
 
-int __attribute__((weak)) oplus_check_pd_usb_type()
+int __attribute__((weak)) oplus_check_pd_usb_type(void)
 {
 	return 0;
 }
