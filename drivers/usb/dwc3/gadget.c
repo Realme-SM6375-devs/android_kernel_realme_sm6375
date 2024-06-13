@@ -404,7 +404,9 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 	dwc3_writel(dep->regs, DWC3_DEPCMDPAR0, params->param0);
 	dwc3_writel(dep->regs, DWC3_DEPCMDPAR1, params->param1);
 	dwc3_writel(dep->regs, DWC3_DEPCMDPAR2, params->param2);
-
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	mb();
+#endif
 	/*
 	 * Synopsys Databook 2.60a states in section 6.3.2.5.6 of that if we're
 	 * not relying on XferNotReady, we can make use of a special "No
@@ -427,6 +429,16 @@ int dwc3_send_gadget_ep_cmd(struct dwc3_ep *dep, unsigned cmd,
 		cmd |= DWC3_DEPCMD_CMDACT;
 
 	dwc3_writel(dep->regs, DWC3_DEPCMD, cmd);
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	dbg_log_string("DEP_NUM: %d :: DEPCMD=0x%08x | DWC3_DEPCMDPAR 0|1|2 = 0x%08x | 0x%08x | 0x%08x |%x |%x |%x",
+	dep->number,dwc3_readl(dep->regs, DWC3_DEPCMD),
+	dwc3_readl(dep->regs, DWC3_DEPCMDPAR0),
+	dwc3_readl(dep->regs, DWC3_DEPCMDPAR1),
+	dwc3_readl(dep->regs, DWC3_DEPCMDPAR2),
+	params->param0, params->param1, params->param2);
+#endif
+
 	do {
 		reg = dwc3_readl(dep->regs, DWC3_DEPCMD);
 		if (!(reg & DWC3_DEPCMD_CMDACT)) {
@@ -1876,7 +1888,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	dev_err_ratelimited(dwc->dev, "request %pK was not queued to %s\n",
 			request, ep->name);
-	ret = -EINVAL;
+	//ret = -EINVAL;
 out:
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -2514,6 +2526,9 @@ static int dwc3_gadget_vbus_draw(struct usb_gadget *g, unsigned int mA)
 	return 0;
 }
 
+static void __dwc3_gadget_stop(struct dwc3 *dwc);
+static int __dwc3_gadget_start(struct dwc3 *dwc);
+
 static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
@@ -2550,6 +2565,8 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 	}
 
 	dwc->last_run_stop = ktime_get();
+
+	dwc->softconnect = is_on;
 
 	/*
 	 * Per databook, when we want to stop the gadget, if a control transfer
@@ -2805,6 +2822,7 @@ static int __dwc3_gadget_start(struct dwc3 *dwc)
 	dwc->ep0state = EP0_SETUP_PHASE;
 	dwc->ep0_bounced = false;
 	dwc->link_state = DWC3_LINK_STATE_SS_DIS;
+	dwc->delayed_status = false;
 	dwc3_ep0_out_start(dwc);
 
 	dwc3_gadget_enable_irq(dwc);
@@ -3769,6 +3787,17 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 
 	dwc3_reset_gadget(dwc);
 
+#ifndef OPLUS_FEATURE_CHG_BASIC
+	/*
+	 * In the Synopsis DesignWare Cores USB3 Databook Rev. 3.30a
+	 * Section 4.1.2 Table 4-2, it states that during a USB reset, the SW
+	 * needs to ensure that it sends "a DEPENDXFER command for any active
+	 * transfers."
+	 */
+	dwc3_stop_active_transfers(dwc, false);
+	dwc->connected = true;
+#endif
+
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	reg &= ~DWC3_DCTL_TSTCTRL_MASK;
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
@@ -4552,7 +4581,7 @@ int dwc3_gadget_resume(struct dwc3 *dwc)
 {
 	int			ret;
 
-	if (!dwc->gadget_driver)
+	if (!dwc->gadget_driver || !dwc->softconnect)
 		return 0;
 
 	ret = __dwc3_gadget_start(dwc);

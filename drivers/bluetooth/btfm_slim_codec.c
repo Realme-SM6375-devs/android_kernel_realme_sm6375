@@ -94,6 +94,10 @@ static int btfm_slim_dai_startup(struct snd_pcm_substream *substream,
 	BTFMSLIM_DBG("substream = %s  stream = %d dai->name = %s",
 		 substream->name, substream->stream, dai->name);
 	ret = btfm_slim_hw_init(btfmslim);
+	//ifdef OPLUS_FEATURE_BT_HW_ERROR_DETECT
+	//add for collect slimbus reason
+	btfm_slim_set_hw_init_result(ret);
+	//end /* OPLUS_FEATURE_BT_HW_ERROR_DETECT */
 	return ret;
 }
 

@@ -5,6 +5,7 @@
 
 #include "nfc_common.h"
 
+#include <soc/oplus/system/boot_mode.h>
 /**
  * i2c_disable_irq()
  *
@@ -173,6 +174,20 @@ ssize_t nfc_i2c_dev_read(struct file *filp, char __user *buf,
 				goto err;
 			}
 
+			/*
+			 * NFC service wanted to close the driver so,
+			 * release the calling reader thread asap.
+			 *
+			 * This can happen in case of nfc node close call from
+			 * eSE HAL in that case the NFC HAL reader thread
+			 * will again call read system call
+			 */
+			if (nfc_dev->release_read) {
+				pr_debug("%s: releasing read\n", __func__);
+				mutex_unlock(&nfc_dev->read_mutex);
+				return 0;
+			}
+
 			pr_warn("%s: spurious interrupt detected\n", __func__);
 		}
 	}
@@ -264,6 +279,7 @@ static const struct file_operations nfc_i2c_dev_fops = {
 	.read = nfc_i2c_dev_read,
 	.write = nfc_i2c_dev_write,
 	.open = nfc_dev_open,
+	.flush = nfc_dev_flush,
 	.release = nfc_dev_close,
 	.unlocked_ioctl = nfc_dev_ioctl,
 };
@@ -375,6 +391,12 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	device_init_wakeup(&client->dev, true);
 	i2c_dev->irq_wake_up = false;
 	nfc_dev->is_ese_session_active = false;
+
+	dev_err(&client->dev,"%s: get boot mode = %d \n", __func__, get_boot_mode());
+	if(get_boot_mode() == MSM_BOOT_MODE__FACTORY){
+		dev_err(&client->dev,"%s: enter ftm mode, set ven = 0\n", __func__);
+		gpio_set_ven(nfc_dev, 0);
+	}
 
 	pr_info("%s success\n", __func__);
 	return 0;

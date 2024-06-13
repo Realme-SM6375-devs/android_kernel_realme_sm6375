@@ -225,7 +225,7 @@ u32 dwc3_core_fifo_space(struct dwc3_ep *dep, u8 type)
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
  */
-static int dwc3_core_soft_reset(struct dwc3 *dwc)
+int dwc3_core_soft_reset(struct dwc3 *dwc)
 {
 	u32		reg;
 	int		retries = 1000;
@@ -1762,8 +1762,13 @@ static int dwc3_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES * 4,
+					dev_name(dwc->dev), 0);
+#else
 	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES,
 					dev_name(dwc->dev), 0);
+#endif
 	if (!dwc->dwc_ipc_log_ctxt)
 		dev_err(dwc->dev, "Error getting ipc_log_ctxt\n");
 
