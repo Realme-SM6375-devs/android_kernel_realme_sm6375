@@ -382,7 +382,7 @@
 		};
 	};
 
-	pa-therm0-step {
+	/*pa-therm0-step {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "step_wise";
@@ -423,7 +423,7 @@
 				cooling-device = <&modem_pa 3 3>;
 			};
 		};
-	};
+	};*/
 
 	xo-therm-step {
 		polling-delay-passive = <0>;

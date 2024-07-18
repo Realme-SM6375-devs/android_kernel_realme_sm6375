@@ -43,7 +43,7 @@
 
 
 &sdhc_1 {
-	status = "ok";
+	status = "disable";
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;
@@ -75,7 +75,9 @@
 	qcom,vdd-io-voltage-level = <1800000 2960000>;
 	qcom,vdd-io-current-level = <0 22000>;
 
-	cd-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;
+	/*oplus design sd_detect active is HIGH when sd card plug in*/
+	/*cd-gpios = <&tlmm 94 GPIO_ACTIVE_LOW>;*/
+	cd-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
 };
 
 &ufsphy_mem {
@@ -240,7 +242,7 @@
 			};
 
 			modem_skin_trip0: modem-skin-trip0 {
-				temperature = <42000>;
+				temperature = <60000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -258,7 +260,7 @@
 			};
 
 			modem_skin_trip1: modem-skin-trip1 {
-				temperature = <44000>;
+				temperature = <62000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -294,7 +296,7 @@
 			};
 
 			cx_trip: cx-trip {
-				temperature = <55000>;
+				temperature = <64000>;
 				hysteresis = <5000>;
 				type = "passive";
 			};
@@ -334,7 +336,7 @@
 							(THERMAL_MAX_LIMIT-4)>;
 			};
 
-			modem-skin-cdev0 {
+			/*modem-skin-cdev0 {
 				trip = <&modem_skin_trip0>;
 				cooling-device = <&modem_pa 1 1>;
 			};
@@ -347,7 +349,7 @@
 			modem-skin-cdev2 {
 				trip = <&cx_trip>;
 				cooling-device = <&modem_pa 3 3>;
-			};
+			};*/
 		};
 	};
 
@@ -359,19 +361,19 @@
 
 		trips {
 			modem_trip0: modem-trip0 {
-				temperature = <46000>;
+				temperature = <60000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
 
 			modem_trip1: modem-trip1 {
-				temperature = <47000>;
+				temperature = <62000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
 
 			modem_trip2: modem-trip2 {
-				temperature = <54000>;
+				temperature = <64000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -403,19 +405,19 @@
 
 		trips {
 			modem_pa_fr1_trip0: modem-pa-fr1-trip0 {
-				temperature = <45000>;
+				temperature = <60000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
 
 			modem_pa_fr1_trip1: modem-pa-fr1-trip1 {
-				temperature = <46000>;
+				temperature = <62000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
 
 			modem_pa_fr1_trip2: modem-pa-fr1-trip2 {
-				temperature = <56000>;
+				temperature = <64000>;
 				hysteresis = <4000>;
 				type = "passive";
 			};
@@ -458,10 +460,11 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	status = "ok";
+	status = "disabled";
 	qcom,i2c-touch-active = "focaltech,fts_ts";
 
 	focaltech@38 {
+        status = "disabled";
 		compatible = "focaltech,fts_ts";
 		reg = <0x38>;
 		interrupt-parent = <&tlmm>;
@@ -531,4 +534,4 @@
 	};
 };
 
-#include "camera/blair-camera-sensor-qrd.dtsi"
+//#include "camera/blair-camera-sensor-qrd.dtsi"
