@@ -2215,7 +2215,7 @@ static inline int typec_handle_debounce_timeout(struct tcpc_device *tcpc)
 		vbus_valid = tcpci_check_vbus_valid_from_ic(tcpc);
 	else
 		vbus_valid = tcpci_check_vbus_valid(tcpc);
-	if (typec_is_cc_no_res() && tcpci_check_vbus_valid_from_ic(tcpc)
+	if (typec_is_cc_no_res() && vbus_valid
 		&& (tcpc->typec_state == typec_unattached_snk))
 		return typec_norp_src_attached_entry(tcpc);
 #endif
