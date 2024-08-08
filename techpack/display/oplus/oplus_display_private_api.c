@@ -2307,7 +2307,10 @@ static ssize_t oplus_display_notify_fp_press(struct kobject *obj,
 
 		if (mode_changed) {
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			err = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (err) {
+				pr_err("Unable to set mode for aod fp_press, err = %d\n", err);
+			}
 		}
 
 		wake_up(&oplus_aod_wait);
@@ -2614,7 +2617,10 @@ static ssize_t oplus_display_set_video(struct kobject *obj,
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			err = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (err) {
+				pr_err("Unable to set mode for aod video, err = %d\n", err);
+			}
 		}
 		wake_up(&oplus_aod_wait);
 	}
@@ -2808,7 +2814,10 @@ int oplus_display_panel_set_video(void *buf) {
 			}
 
 			display->panel->dyn_clk_caps.dyn_clk_support = false;
-			drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			err = drm_atomic_set_mode_for_crtc(crtc_state, set_mode);
+			if (err) {
+				pr_err("Unable to set mode for aod video, err = %d\n", err);
+			}
 		}
 		wake_up(&oplus_aod_wait);
 	}
