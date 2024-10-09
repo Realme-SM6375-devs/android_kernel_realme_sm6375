@@ -421,7 +421,6 @@ static void __qrtr_node_release(struct kref *kref)
 	kthread_stop(node->task);
 
 	skb_queue_purge(&node->rx_queue);
-	kfree(node->no_wake_svc.arr);
 	kfree(node);
 }
 

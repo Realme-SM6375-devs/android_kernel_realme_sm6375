@@ -1761,9 +1761,13 @@ static int dwc3_probe(struct platform_device *pdev)
 			goto err3;
 		}
 	}
-
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES * 4,
+					dev_name(dwc->dev), 0);
+#else
 	dwc->dwc_ipc_log_ctxt = ipc_log_context_create(NUM_LOG_PAGES,
 					dev_name(dwc->dev), 0);
+#endif
 	if (!dwc->dwc_ipc_log_ctxt)
 		dev_err(dwc->dev, "Error getting ipc_log_ctxt\n");
 
